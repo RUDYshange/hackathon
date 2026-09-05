@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ClientListView } from './views/ClientListView';
 import { SecureClientFormView } from './views/SecureClientFormView';
 import { ServerDrivenFormView } from './views/ServerDrivenFormView';
@@ -18,8 +18,36 @@ import {
 
 type ActiveTab = 'desk' | 'clients' | 'new-client' | 'sdui' | 'claims' | 'reminders';
 
+const tabPaths: Record<ActiveTab, string> = {
+  desk: '/',
+  clients: '/clients',
+  'new-client': '/new-client',
+  sdui: '/form-engine',
+  claims: '/claims',
+  reminders: '/reminders'
+};
+
+const pathTabs: Record<string, ActiveTab> = Object.fromEntries(
+  Object.entries(tabPaths).map(([tab, path]) => [path, tab as ActiveTab])
+) as Record<string, ActiveTab>;
+
+function tabForPath(path: string): ActiveTab {
+  return pathTabs[path] ?? 'desk';
+}
+
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => tabForPath(window.location.pathname));
+
+  useEffect(() => {
+    const handlePopState = () => setActiveTab(tabForPath(window.location.pathname));
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (tab: ActiveTab) => {
+    window.history.pushState({}, '', tabPaths[tab]);
+    setActiveTab(tab);
+  };
 
   return (
     <div className="crm-app">
@@ -32,13 +60,13 @@ export const App: React.FC = () => {
 
         <nav className="crm-nav" aria-label="Main navigation">
           <span className="nav-section">Practice</span>
-          <NavItem active={activeTab === 'desk'} onClick={() => setActiveTab('desk')} icon={<LayoutDashboard size={15} />} label="The desk" />
-          <NavItem active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} icon={<Users size={15} />} label="Clients" badge="6" />
-          <NavItem active={activeTab === 'reminders'} onClick={() => setActiveTab('reminders')} icon={<Bell size={15} />} label="Reminders" badge="12" />
+          <NavItem active={activeTab === 'desk'} onClick={() => navigateTo('desk')} icon={<LayoutDashboard size={15} />} label="The desk" />
+          <NavItem active={activeTab === 'clients'} onClick={() => navigateTo('clients')} icon={<Users size={15} />} label="Clients" badge="6" />
+          <NavItem active={activeTab === 'reminders'} onClick={() => navigateTo('reminders')} icon={<Bell size={15} />} label="Reminders" badge="12" />
           <span className="nav-section">Servicing</span>
-          <NavItem active={activeTab === 'claims'} onClick={() => setActiveTab('claims')} icon={<FileCheck2 size={15} />} label="Claims" badge="2" />
-          <NavItem active={activeTab === 'new-client'} onClick={() => setActiveTab('new-client')} icon={<UserPlus size={15} />} label="Onboard client" />
-          <NavItem active={activeTab === 'sdui'} onClick={() => setActiveTab('sdui')} icon={<Layers size={15} />} label="Form engine" />
+          <NavItem active={activeTab === 'claims'} onClick={() => navigateTo('claims')} icon={<FileCheck2 size={15} />} label="Claims" badge="2" />
+          <NavItem active={activeTab === 'new-client'} onClick={() => navigateTo('new-client')} icon={<UserPlus size={15} />} label="Onboard client" />
+          <NavItem active={activeTab === 'sdui'} onClick={() => navigateTo('sdui')} icon={<Layers size={15} />} label="Form engine" />
         </nav>
 
         <div className="adviser-card">
@@ -55,28 +83,28 @@ export const App: React.FC = () => {
             <input placeholder="Search clients, policies, claim numbers" />
           </label>
           <div className="topbar-spacer" />
-          <button className="btn btn-secondary" onClick={() => setActiveTab('claims')}><ClipboardPlus size={15} /> Log a claim</button>
-          <button className="btn btn-primary" onClick={() => setActiveTab('new-client')}><UserPlus size={15} /> Add client</button>
+          <button className="btn btn-secondary" onClick={() => navigateTo('claims')}><ClipboardPlus size={15} /> Log a claim</button>
+          <button className="btn btn-primary" onClick={() => navigateTo('new-client')}><UserPlus size={15} /> Add client</button>
         </header>
 
       <main className="crm-content">
         {activeTab === 'desk' && (
           <DeskView
-            onOpenClients={() => setActiveTab('clients')}
-            onOpenClaims={() => setActiveTab('claims')}
-            onOpenReminders={() => setActiveTab('reminders')}
+            onOpenClients={() => navigateTo('clients')}
+            onOpenClaims={() => navigateTo('claims')}
+            onOpenReminders={() => navigateTo('reminders')}
           />
         )}
         {activeTab === 'clients' && (
           <ClientListView
-            onNewClientClick={() => setActiveTab('new-client')}
+            onNewClientClick={() => navigateTo('new-client')}
           />
         )}
 
         {activeTab === 'new-client' && (
           <SecureClientFormView
-            onBack={() => setActiveTab('clients')}
-            onSuccess={() => setActiveTab('clients')}
+            onBack={() => navigateTo('clients')}
+            onSuccess={() => navigateTo('clients')}
           />
         )}
 
