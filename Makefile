@@ -21,7 +21,7 @@ run: ## Run the entire application locally (Django backend + React frontend)
 	@echo "======================================================="
 	@if [ ! -d "$(VENV)" ]; then echo "==> First time setup: Installing backend..."; $(MAKE) install-backend; fi
 	@if [ ! -d "$(REACT_DIR)/node_modules" ]; then echo "==> First time setup: Installing frontend..."; $(MAKE) install-frontend; fi
-	@if [ ! -f "$(PYTHON_DIR)/royalsquare.sqlite3" ]; then echo "==> First time setup: Initializing database..."; $(MAKE) migrate; $(MAKE) seed; fi
+	@echo "==> Syncing schema and sample data with Supabase..."; $(MAKE) migrate; $(MAKE) seed
 	@echo ""
 	@echo "  • React Web App:   \033[32mhttp://localhost:5173\033[0m"
 	@echo "  • Django REST API: \033[32mhttp://localhost:8000/api/health\033[0m"
@@ -70,8 +70,8 @@ migrate: ## Run Django database migrations
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py makemigrations crm
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py migrate
 
-seed: ## Seed SQLite database with realistic South African CRM records
-	@echo "==> Seeding database..."
+seed: ## Seed Supabase database with realistic South African CRM records
+	@echo "==> Seeding Supabase database..."
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py seed_data
 
 setup: install migrate seed ## Complete initial setup (install, migrate, seed)

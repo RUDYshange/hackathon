@@ -1,7 +1,0 @@
-# This is a React/Vite app, so runtime dependencies are managed in package.json.
-# The Vite import error was caused by a missing source file:
-#   src/views/DeskView.tsx
-#
-# Install and run with:
-#   npm install
-#   npm run dev
