@@ -5,9 +5,8 @@ import { clientFormSchema, ClientFormData } from '../schemas/clientSchema';
 import { MaskedIdInput } from '../components/forms/MaskedIdInput';
 import { CurrencyInput } from '../components/forms/CurrencyInput';
 import { HoneypotField } from '../components/forms/HoneypotField';
-import { VoiceFormAssistant } from '../components/forms/VoiceFormAssistant';
-import { VoiceMicButton } from '../components/forms/VoiceMicButton';
-import { ExtractedClientData } from '../services/formFieldExtractor';
+import { ClientDocumentScanner } from '../components/forms/ClientDocumentScanner';
+import { IdScanResult, JobScanResult } from '../services/documentScannerService';
 import { sanitizeInput } from '../security/sanitizer';
 import { acquireSubmissionLock, releaseSubmissionLock } from '../security/csrf';
 import { secureFetch } from '../services/api';
@@ -50,47 +49,45 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
     }
   });
 
-  const handleApplyVoiceData = (data: ExtractedClientData) => {
-    if (data.title) {
-      setValue('title', data.title, { shouldValidate: true, shouldDirty: true });
+  // Apply Verified ID Document Data
+  const handleApplyIdData = (data: IdScanResult) => {
+    if (data.first_name) {
+      setValue('firstName', data.first_name, { shouldValidate: true, shouldDirty: true });
     }
-    if (data.firstName) {
-      setValue('firstName', data.firstName, { shouldValidate: true, shouldDirty: true });
-    }
-    if (data.secondName) {
-      setValue('secondName', data.secondName, { shouldValidate: true, shouldDirty: true });
+    if (data.second_name) {
+      setValue('secondName', data.second_name, { shouldValidate: true, shouldDirty: true });
     }
     if (data.surname) {
       setValue('surname', data.surname, { shouldValidate: true, shouldDirty: true });
     }
-    if (data.idNumber) {
-      setValue('idNumber', data.idNumber, { shouldValidate: true, shouldDirty: true });
-      if (data.dateOfBirth) {
-        setValue('dateOfBirth', data.dateOfBirth, { shouldValidate: true, shouldDirty: true });
+    if (data.id_number) {
+      setValue('idNumber', data.id_number, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.date_of_birth) {
+      setValue('dateOfBirth', data.date_of_birth, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.gender) {
+      if (data.gender.toLowerCase().includes('female')) {
+        setValue('title', 'Ms', { shouldValidate: true, shouldDirty: true });
+      } else {
+        setValue('title', 'Mr', { shouldValidate: true, shouldDirty: true });
       }
-    } else if (data.dateOfBirth) {
-      setValue('dateOfBirth', data.dateOfBirth, { shouldValidate: true, shouldDirty: true });
     }
-    if (data.emailAddress) {
-      setValue('emailAddress', data.emailAddress, { shouldValidate: true, shouldDirty: true });
-    }
-    if (data.mobileNumber) {
-      setValue('mobileNumber', data.mobileNumber, { shouldValidate: true, shouldDirty: true });
-    }
+  };
+
+  // Apply Verified Job / Position & Financial Data
+  const handleApplyJobData = (data: JobScanResult) => {
     if (data.occupation) {
       setValue('occupation', data.occupation, { shouldValidate: true, shouldDirty: true });
     }
     if (data.employer) {
       setValue('employer', data.employer, { shouldValidate: true, shouldDirty: true });
     }
-    if (data.annualIncome !== undefined && data.annualIncome !== null) {
-      setValue('annualIncome', data.annualIncome, { shouldValidate: true, shouldDirty: true });
+    if (data.annual_income) {
+      setValue('annualIncome', Number(data.annual_income), { shouldValidate: true, shouldDirty: true });
     }
-    if (data.riskProfile) {
-      setValue('riskProfile', data.riskProfile, { shouldValidate: true, shouldDirty: true });
-    }
-    if (data.primaryAddress) {
-      setValue('primaryAddress', data.primaryAddress, { shouldValidate: true, shouldDirty: true });
+    if (data.business_address) {
+      setValue('primaryAddress', data.business_address, { shouldValidate: true, shouldDirty: true });
     }
   };
 
@@ -99,39 +96,39 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
 
     // 1. Honeypot check
     if (honeypot.trim() !== '') {
-      console.warn('Bot submission blocked via Honeypot trap.');
-      setSubmissionStatus('error');
-      setStatusMessage('Security verification failed. Please reload.');
+      console.warn('Bot detected via honeypot field.');
       return;
     }
 
-    // 2. Double submit prevention
+    // 2. Idempotency Lock
     if (!acquireSubmissionLock('client-form')) {
+      setStatusMessage('A submission is already in flight. Please wait.');
       return;
     }
 
     setSubmissionStatus('submitting');
 
     try {
-      const payload = {
+      // 3. Active XSS Sanitization
+      const sanitized = {
         title: sanitizeInput(data.title),
         firstName: sanitizeInput(data.firstName),
-        secondName: data.secondName ? sanitizeInput(data.secondName) : null,
+        secondName: data.secondName ? sanitizeInput(data.secondName) : undefined,
         surname: sanitizeInput(data.surname),
-        idNumber: data.idNumber, // Raw 13 digits for database
-        dateOfBirth: data.dateOfBirth || null,
-        emailAddress: sanitizeInput(data.emailAddress),
-        mobileNumber: sanitizeInput(data.mobileNumber),
-        occupation: data.occupation ? sanitizeInput(data.occupation) : null,
-        employer: data.employer ? sanitizeInput(data.employer) : null,
-        annualIncome: data.annualIncome || null,
+        idNumber: data.idNumber ? data.idNumber.replace(/\D/g, '') : undefined,
+        dateOfBirth: data.dateOfBirth || undefined,
+        emailAddress: data.emailAddress ? sanitizeInput(data.emailAddress) : undefined,
+        mobileNumber: data.mobileNumber ? sanitizeInput(data.mobileNumber) : undefined,
+        occupation: data.occupation ? sanitizeInput(data.occupation) : undefined,
+        employer: data.employer ? sanitizeInput(data.employer) : undefined,
+        annualIncome: data.annualIncome,
         riskProfile: data.riskProfile,
-        primaryAddress: data.primaryAddress ? sanitizeInput(data.primaryAddress) : null
+        primaryAddress: data.primaryAddress ? sanitizeInput(data.primaryAddress) : undefined
       };
 
-      const res = await secureFetch('/clients', {
+      const res = await secureFetch<any>('/clients', {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(sanitized)
       });
 
       if (res.error) {
@@ -164,17 +161,17 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             <Lock size={20} className="text-gold" />
           </div>
           <div>
-            <h4 className="security-banner-title">Hardened Form Architecture (React Hook Form + Zod + POPIA)</h4>
+            <h4 className="security-banner-title">Hardened Client Intake Architecture (React Hook Form + Zod + POPIA)</h4>
             <p className="security-banner-desc">
-              Features real-time <strong>Gemini 3.5 Transcribe Live</strong> voice dictation, active XSS stripping, RSA Luhn validation, POPIA field masking, CSRF header token injection, and anti-bot honeypots.
+              "One AI agent, multiple ways in." Upload official documents to extract particulars with Gemini Multimodal Vision, programmatic <strong>RSA Luhn Checksum validation</strong> ("zero mistakes" backstop), active XSS stripping, POPIA field masking, CSRF protection, and anti-bot honeypots.
             </p>
           </div>
         </div>
 
-        {/* Gemini 3.5 Transcribe Live Speech-to-Text Assistant */}
-        <VoiceFormAssistant
-          onApplyData={handleApplyVoiceData}
-          formType="Client Onboarding"
+        {/* Dual Document Scanner: ID Document & Job Details */}
+        <ClientDocumentScanner
+          onApplyIdData={handleApplyIdData}
+          onApplyJobData={handleApplyJobData}
         />
 
         {statusMessage && (
@@ -192,9 +189,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             <h3 className="section-title">1. Personal Particulars</h3>
             <div className="form-grid grid-cols-2">
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Title *</label>
-                </div>
+                <label className="field-label">Title *</label>
                 <Controller
                   name="title"
                   control={control}
@@ -213,14 +208,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">First Name *</label>
-                  <VoiceMicButton
-                    fieldLabel="First Name"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('firstName', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">First Name *</label>
                 <Controller
                   name="firstName"
                   control={control}
@@ -236,14 +224,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Second Name (Optional)</label>
-                  <VoiceMicButton
-                    fieldLabel="Second Name"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('secondName', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Second Name (Optional)</label>
                 <Controller
                   name="secondName"
                   control={control}
@@ -259,14 +240,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Surname *</label>
-                  <VoiceMicButton
-                    fieldLabel="Surname"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('surname', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Surname *</label>
                 <Controller
                   name="surname"
                   control={control}
@@ -336,17 +310,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             <h3 className="section-title">2. Contact & Financial Particulars</h3>
             <div className="form-grid grid-cols-2">
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Email Address *</label>
-                  <VoiceMicButton
-                    fieldLabel="Email Address"
-                    currentValue=""
-                    onTranscribe={(text) => {
-                      const cleanEmail = text.toLowerCase().replace(/\s+at\s+/g, '@').replace(/\s+dot\s+/g, '.').replace(/\s+/g, '');
-                      setValue('emailAddress', cleanEmail, { shouldValidate: true, shouldDirty: true });
-                    }}
-                  />
-                </div>
+                <label className="field-label">Email Address *</label>
                 <Controller
                   name="emailAddress"
                   control={control}
@@ -363,14 +327,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Mobile Number *</label>
-                  <VoiceMicButton
-                    fieldLabel="Mobile Number"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('mobileNumber', text.replace(/\s+/g, ' ').trim(), { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Mobile Number *</label>
                 <Controller
                   name="mobileNumber"
                   control={control}
@@ -387,14 +344,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Occupation</label>
-                  <VoiceMicButton
-                    fieldLabel="Occupation"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('occupation', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Occupation / Position</label>
                 <Controller
                   name="occupation"
                   control={control}
@@ -410,14 +360,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <div className="field-label-row">
-                  <label className="field-label">Employer</label>
-                  <VoiceMicButton
-                    fieldLabel="Employer"
-                    currentValue=""
-                    onTranscribe={(text) => setValue('employer', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Employer / Organization</label>
                 <Controller
                   name="employer"
                   control={control}
@@ -453,15 +396,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group span-full">
-                <div className="field-label-row">
-                  <label className="field-label">Primary Residential Address</label>
-                  <VoiceMicButton
-                    fieldLabel="Address"
-                    currentValue=""
-                    appendMode={true}
-                    onTranscribe={(text) => setValue('primaryAddress', text, { shouldValidate: true, shouldDirty: true })}
-                  />
-                </div>
+                <label className="field-label">Primary Residential Address</label>
                 <Controller
                   name="primaryAddress"
                   control={control}
@@ -469,7 +404,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
                     <textarea
                       rows={2}
                       className="form-input"
-                      placeholder="Street address, Suburb, City, Postal code"
+                      placeholder="14 Hertzog Boulevard, Foreshore, Cape Town, 8001"
                       value={field.value || ''}
                       onChange={field.onChange}
                     />
@@ -479,18 +414,27 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             </div>
           </div>
 
-          <div className="form-actions-bar">
-            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={submissionStatus === 'submitting'}>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onBack}
+              disabled={submissionStatus === 'submitting'}
+            >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submissionStatus === 'submitting'}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submissionStatus === 'submitting'}
+            >
               {submissionStatus === 'submitting' ? (
                 <>
                   <Loader2 size={16} className="spin-icon" /> Validating & Encrypting...
                 </>
               ) : (
                 <>
-                  <ShieldCheck size={16} /> Register Client Profile
+                  <ShieldCheck size={16} /> Complete Compliant Onboarding
                 </>
               )}
             </button>
