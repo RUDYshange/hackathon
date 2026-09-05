@@ -39,7 +39,7 @@ run-local: run ## Alias for 'make run'
 
 run-backend: dev-backend ## Run only the Django backend locally
 
-run-frontend: dev-frontend ## Run only the React frontend locally
+run-frontend: dev-frontend ## Run only the React frontend locally.
 
 dev: run ## Alias for 'make run'
 
