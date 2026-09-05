@@ -24,7 +24,8 @@ interface ClientListViewProps {
 }
 
 export const ClientListView: React.FC<ClientListViewProps> = ({
-  onNewClientClick
+  onNewClientClick,
+  onSelectClient
 }) => {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [search, setSearch] = useState<string>('');
@@ -111,7 +112,14 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
       ) : (
         <div className="client-grid">
           {clients.map((client) => (
-            <div key={client.id} className="client-card">
+            <div
+              key={client.id}
+              className="client-card"
+              role={onSelectClient ? 'button' : undefined}
+              tabIndex={onSelectClient ? 0 : undefined}
+              style={onSelectClient ? { cursor: 'pointer' } : undefined}
+              onClick={() => onSelectClient && onSelectClient(client.id)}
+            >
               <div className="client-card-header">
                 <div className="avatar-initials">{client.initials}</div>
                 <div className="client-header-meta">
@@ -161,7 +169,11 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
                       : 'Review not scheduled'}
                   </span>
                 </div>
-                <button className="btn-icon-subtle" title="View Full Ledger & Policy File">
+                <button
+                  className="btn-icon-subtle"
+                  title="View full ledger & policy file"
+                  onClick={(e) => { e.stopPropagation(); onSelectClient && onSelectClient(client.id); }}
+                >
                   <ArrowUpRight size={16} />
                 </button>
               </div>

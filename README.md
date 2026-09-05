@@ -1,6 +1,6 @@
 # Royal Square CRM
 
-A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Neon PostgreSQL** database (backend) and **React 18 + TypeScript** (frontend).
+A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Neon PostgreSQL** database (primary backend), an alternative **FastAPI + SQLite** implementation, and **React 18 + TypeScript** (frontend).
 
 ---
 
@@ -8,19 +8,21 @@ A modern, full-stack wealth management & advisory CRM built with **Django 5 + Dj
 
 ```
 royal-square-crm/
-├── royal-square-crm-django/      # Django 5 + DRF + Neon PostgreSQL (Layered Architecture)
+├── royal-square-crm-django/      # Django 5 + DRF + Neon PostgreSQL — PRIMARY backend (used by `make run`)
 │   ├── config/                   # Project settings, URLs, WSGI
 │   ├── crm/
-│   │   ├── views/                # [Layer 1] DRF Presentation / Endpoints (+ assistant_views)
+│   │   ├── views/                # [Layer 1] DRF Presentation / Endpoints (+ assistant_views — voice agent)
 │   │   ├── services/             # [Layer 2] Business Logic, Math & POPIA Masking
 │   │   │                         #           (+ assistant_service, assistant_tools — Groq voice agent)
 │   │   ├── rules/                # [Rules Engine] Pluggable Compliance & Review Rules
-│   │   ├── repositories/         # [Layer 3] Data Access Layer
+│   │   ├── repositories/         # [Layer 3] Django ORM Data Access Layer
 │   │   ├── serializers/          # DRF DTOs & Validation
 │   │   ├── models.py             # [Layer 4] Django ORM Database Entities
-│   │   ├── migrations/           # Schema applied to Neon PostgreSQL
 │   │   └── management/commands/  # seed_data — sample wealth management records
 │   └── requirements.txt
+│
+├── royal-square-crm-python/      # Python 3.12 + FastAPI + SQLite — alternative backend implementation
+│   └── app/                      # routers / services / rules / repositories / models / schemas
 │
 └── royal-square-crm-react/       # React 18 + TypeScript + Vite (Hardened Frontend)
     ├── src/
@@ -59,45 +61,41 @@ make check            # Run Django security checks and React build verification
 make clean            # Remove build caches and pycache
 ```
 
-### Neon Database
+### Supabase Database
 
-The backend connects **exclusively** to a Neon PostgreSQL database — there is no
-local SQLite fallback. Copy the connection string from the Neon Console >
-Connect and set it as `DATABASE_URL` in `royal-square-crm-django/.env`. Use the
-pooled endpoint (host contains `-pooler`) for the running app. Neon requires
-TLS, so `sslmode=require` is enforced automatically:
+The Django backend uses local SQLite by default. To use a Supabase PostgreSQL
+database, copy the connection string from Supabase Dashboard > Connect and set
+`DATABASE_URL` (or `SUPABASE_DB_URL`) in `royal-square-crm-django/.env`:
 
 ```dotenv
-DATABASE_URL=postgresql://<user>:<password>@ep-xxxx-pooler.<region>.aws.neon.tech/<db>?sslmode=require&channel_binding=require
-DB_SSLMODE=require
-DB_CONN_MAX_AGE=600
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+SUPABASE_URL=https://[PROJECT_REF].supabase.co
+SUPABASE_ANON_KEY=[PUBLIC_ANON_KEY]
 ```
 
-Then apply the Django schema and seed sample data into Neon:
+Then apply the Django schema to Supabase:
 
 ```bash
 cd royal-square-crm-django
 ./venv/bin/python manage.py migrate
-./venv/bin/python manage.py seed_data
 ```
 
-The database is reached only through the Django API — the React frontend never
-connects to Neon directly, so no database credentials belong in the frontend
-environment.
+Keep the Supabase service-role key out of both the repository and the React
+environment. The React app may use only the public anon key if direct Supabase
+client access is added later.
 
 ---
 
 ## Manual Execution (Without Make)
 ```bash
-cd royal-square-crm-django
+cd royal-square-crm-python
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
-./venv/bin/python manage.py migrate      # Applies schema to Neon PostgreSQL
-./venv/bin/python manage.py seed_data    # Seeds sample CRM records into Neon
-./venv/bin/python manage.py runserver 127.0.0.1:8000
+./venv/bin/python -m app.seed     # Seeds SQLite database (royalsquare.db)
+./venv/bin/uvicorn app.main:app --port 8000
 ```
 - API Health: `http://localhost:8000/api/health`
-- Django Admin: `http://localhost:8000/admin`
+- Interactive Swagger Docs: `http://localhost:8000/docs`
 
 ### 2. Start the React Frontend
 ```bash
