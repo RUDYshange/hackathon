@@ -1,6 +1,6 @@
 # Royal Square CRM
 
-A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Supabase PostgreSQL** database (backend) and **React 18 + TypeScript** (frontend).
+A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Neon PostgreSQL** database (backend) and **React 18 + TypeScript** (frontend).
 
 ---
 
@@ -8,7 +8,7 @@ A modern, full-stack wealth management & advisory CRM built with **Django 5 + Dj
 
 ```
 royal-square-crm/
-├── royal-square-crm-django/      # Django 5 + DRF + Supabase PostgreSQL (Layered Architecture)
+├── royal-square-crm-django/      # Django 5 + DRF + Neon PostgreSQL (Layered Architecture)
 │   ├── config/                   # Project settings, URLs, WSGI
 │   ├── crm/
 │   │   ├── views/                # [Layer 1] DRF Presentation / Endpoints
@@ -17,7 +17,7 @@ royal-square-crm/
 │   │   ├── repositories/         # [Layer 3] Data Access Layer
 │   │   ├── serializers/          # DRF DTOs & Validation
 │   │   ├── models.py             # [Layer 4] Django ORM Database Entities
-│   │   ├── migrations/           # Schema applied to Supabase PostgreSQL
+│   │   ├── migrations/           # Schema applied to Neon PostgreSQL
 │   │   └── management/commands/  # seed_data — sample wealth management records
 │   └── requirements.txt
 │
@@ -57,21 +57,21 @@ make check            # Run Django security checks and React build verification
 make clean            # Remove build caches and pycache
 ```
 
-### Supabase Database
+### Neon Database
 
-The backend connects **exclusively** to a Supabase PostgreSQL database — there is
-no local SQLite fallback. Copy the connection string from Supabase Dashboard >
-Connect and set the following in `royal-square-crm-django/.env` (the `jdbc:`
-prefix is stripped automatically, so you can paste the JDBC form as-is):
+The backend connects **exclusively** to a Neon PostgreSQL database — there is no
+local SQLite fallback. Copy the connection string from the Neon Console >
+Connect and set it as `DATABASE_URL` in `royal-square-crm-django/.env`. Use the
+pooled endpoint (host contains `-pooler`) for the running app. Neon requires
+TLS, so `sslmode=require` is enforced automatically:
 
 ```dotenv
-DB_URL=jdbc:postgresql://[HOST]:5432/postgres
-DB_USER=postgres.[PROJECT_REF]
-DB_PASSWORD=[PASSWORD]
+DATABASE_URL=postgresql://<user>:<password>@ep-xxxx-pooler.<region>.aws.neon.tech/<db>?sslmode=require&channel_binding=require
 DB_SSLMODE=require
+DB_CONN_MAX_AGE=600
 ```
 
-Then apply the Django schema and seed sample data into Supabase:
+Then apply the Django schema and seed sample data into Neon:
 
 ```bash
 cd royal-square-crm-django
@@ -79,9 +79,9 @@ cd royal-square-crm-django
 ./venv/bin/python manage.py seed_data
 ```
 
-Keep the Supabase service-role key out of both the repository and the React
-environment. The React app may use only the public anon key if direct Supabase
-client access is added later.
+The database is reached only through the Django API — the React frontend never
+connects to Neon directly, so no database credentials belong in the frontend
+environment.
 
 ---
 
@@ -90,8 +90,8 @@ client access is added later.
 cd royal-square-crm-django
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
-./venv/bin/python manage.py migrate      # Applies schema to Supabase PostgreSQL
-./venv/bin/python manage.py seed_data    # Seeds sample CRM records into Supabase
+./venv/bin/python manage.py migrate      # Applies schema to Neon PostgreSQL
+./venv/bin/python manage.py seed_data    # Seeds sample CRM records into Neon
 ./venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 - API Health: `http://localhost:8000/api/health`

@@ -6,7 +6,7 @@ def health_check(request):
     return JsonResponse({
         "status": "ok",
         "service": "Royal Square CRM Django API (Secure by Design)",
-        "database": "Supabase PostgreSQL"
+        "database": "Neon PostgreSQL"
     })
 
 urlpatterns = [

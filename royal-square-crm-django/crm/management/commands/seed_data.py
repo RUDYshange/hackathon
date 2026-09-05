@@ -20,7 +20,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Database already contains records. Skipping seed.'))
             return
 
-        self.stdout.write('Seeding Supabase PostgreSQL database with initial wealth management records...')
+        self.stdout.write('Seeding Neon PostgreSQL database with initial wealth management records...')
 
         # 1. Client: Sipho Dlamini
         c1 = Client.objects.create(
@@ -128,4 +128,4 @@ class Command(BaseCommand):
             ClaimLogEntry(claim=claim1, text="Stage advanced to ASSESSMENT.")
         ])
 
-        self.stdout.write(self.style.SUCCESS('Successfully seeded Supabase PostgreSQL database!'))
+        self.stdout.write(self.style.SUCCESS('Successfully seeded Neon PostgreSQL database!'))
