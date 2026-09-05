@@ -2,8 +2,5 @@ django>=5.1,<5.2
 djangorestframework>=3.15,<3.16
 django-cors-headers>=4.4,<4.5
 python-dotenv>=1.0,<1.1
-psycopg[binary]>=3.2,<3.3
-
-# Supabase setup after adding real DB_USER and DB_PASSWORD in .env:
-# python manage.py migrate
-# python manage.py seed_data
+dj-database-url>=2.2,<3
+psycopg[binary]>=3.2,<4

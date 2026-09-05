@@ -5,6 +5,9 @@ import { clientFormSchema, ClientFormData } from '../schemas/clientSchema';
 import { MaskedIdInput } from '../components/forms/MaskedIdInput';
 import { CurrencyInput } from '../components/forms/CurrencyInput';
 import { HoneypotField } from '../components/forms/HoneypotField';
+import { VoiceFormAssistant } from '../components/forms/VoiceFormAssistant';
+import { VoiceMicButton } from '../components/forms/VoiceMicButton';
+import { ExtractedClientData } from '../services/formFieldExtractor';
 import { sanitizeInput } from '../security/sanitizer';
 import { acquireSubmissionLock, releaseSubmissionLock } from '../security/csrf';
 import { secureFetch } from '../services/api';
@@ -46,6 +49,50 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
       primaryAddress: ''
     }
   });
+
+  const handleApplyVoiceData = (data: ExtractedClientData) => {
+    if (data.title) {
+      setValue('title', data.title, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.firstName) {
+      setValue('firstName', data.firstName, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.secondName) {
+      setValue('secondName', data.secondName, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.surname) {
+      setValue('surname', data.surname, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.idNumber) {
+      setValue('idNumber', data.idNumber, { shouldValidate: true, shouldDirty: true });
+      if (data.dateOfBirth) {
+        setValue('dateOfBirth', data.dateOfBirth, { shouldValidate: true, shouldDirty: true });
+      }
+    } else if (data.dateOfBirth) {
+      setValue('dateOfBirth', data.dateOfBirth, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.emailAddress) {
+      setValue('emailAddress', data.emailAddress, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.mobileNumber) {
+      setValue('mobileNumber', data.mobileNumber, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.occupation) {
+      setValue('occupation', data.occupation, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.employer) {
+      setValue('employer', data.employer, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.annualIncome !== undefined && data.annualIncome !== null) {
+      setValue('annualIncome', data.annualIncome, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.riskProfile) {
+      setValue('riskProfile', data.riskProfile, { shouldValidate: true, shouldDirty: true });
+    }
+    if (data.primaryAddress) {
+      setValue('primaryAddress', data.primaryAddress, { shouldValidate: true, shouldDirty: true });
+    }
+  };
 
   const onSubmit = async (data: ClientFormData) => {
     setStatusMessage(null);
@@ -119,10 +166,16 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
           <div>
             <h4 className="security-banner-title">Hardened Form Architecture (React Hook Form + Zod + POPIA)</h4>
             <p className="security-banner-desc">
-              Features active XSS stripping, RSA Luhn validation, POPIA field masking, CSRF header token injection, and anti-bot honeypots.
+              Features real-time <strong>Gemini 3.5 Transcribe Live</strong> voice dictation, active XSS stripping, RSA Luhn validation, POPIA field masking, CSRF header token injection, and anti-bot honeypots.
             </p>
           </div>
         </div>
+
+        {/* Gemini 3.5 Transcribe Live Speech-to-Text Assistant */}
+        <VoiceFormAssistant
+          onApplyData={handleApplyVoiceData}
+          formType="Client Onboarding"
+        />
 
         {statusMessage && (
           <div className={`alert-banner ${submissionStatus === 'success' ? 'alert-success' : 'alert-error'}`}>
@@ -139,7 +192,9 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             <h3 className="section-title">1. Personal Particulars</h3>
             <div className="form-grid grid-cols-2">
               <div className="form-group">
-                <label className="field-label">Title *</label>
+                <div className="field-label-row">
+                  <label className="field-label">Title *</label>
+                </div>
                 <Controller
                   name="title"
                   control={control}
@@ -158,7 +213,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">First Name *</label>
+                <div className="field-label-row">
+                  <label className="field-label">First Name *</label>
+                  <VoiceMicButton
+                    fieldLabel="First Name"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('firstName', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="firstName"
                   control={control}
@@ -174,7 +236,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">Second Name (Optional)</label>
+                <div className="field-label-row">
+                  <label className="field-label">Second Name (Optional)</label>
+                  <VoiceMicButton
+                    fieldLabel="Second Name"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('secondName', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="secondName"
                   control={control}
@@ -190,7 +259,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">Surname *</label>
+                <div className="field-label-row">
+                  <label className="field-label">Surname *</label>
+                  <VoiceMicButton
+                    fieldLabel="Surname"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('surname', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="surname"
                   control={control}
@@ -214,7 +290,7 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
                     <MaskedIdInput
                       value={field.value}
                       onChange={field.onChange}
-                      onDobDetected={(dob) => setValue('dateOfBirth', dob)}
+                      onDobDetected={(dob) => setValue('dateOfBirth', dob, { shouldValidate: true, shouldDirty: true })}
                       error={errors.idNumber?.message}
                       disabled={submissionStatus === 'submitting'}
                     />
@@ -260,7 +336,17 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
             <h3 className="section-title">2. Contact & Financial Particulars</h3>
             <div className="form-grid grid-cols-2">
               <div className="form-group">
-                <label className="field-label">Email Address *</label>
+                <div className="field-label-row">
+                  <label className="field-label">Email Address *</label>
+                  <VoiceMicButton
+                    fieldLabel="Email Address"
+                    currentValue=""
+                    onTranscribe={(text) => {
+                      const cleanEmail = text.toLowerCase().replace(/\s+at\s+/g, '@').replace(/\s+dot\s+/g, '.').replace(/\s+/g, '');
+                      setValue('emailAddress', cleanEmail, { shouldValidate: true, shouldDirty: true });
+                    }}
+                  />
+                </div>
                 <Controller
                   name="emailAddress"
                   control={control}
@@ -277,7 +363,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">Mobile Number *</label>
+                <div className="field-label-row">
+                  <label className="field-label">Mobile Number *</label>
+                  <VoiceMicButton
+                    fieldLabel="Mobile Number"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('mobileNumber', text.replace(/\s+/g, ' ').trim(), { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="mobileNumber"
                   control={control}
@@ -294,7 +387,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">Occupation</label>
+                <div className="field-label-row">
+                  <label className="field-label">Occupation</label>
+                  <VoiceMicButton
+                    fieldLabel="Occupation"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('occupation', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="occupation"
                   control={control}
@@ -310,7 +410,14 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="field-label">Employer</label>
+                <div className="field-label-row">
+                  <label className="field-label">Employer</label>
+                  <VoiceMicButton
+                    fieldLabel="Employer"
+                    currentValue=""
+                    onTranscribe={(text) => setValue('employer', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="employer"
                   control={control}
@@ -346,7 +453,15 @@ export const SecureClientFormView: React.FC<SecureClientFormViewProps> = ({
               </div>
 
               <div className="form-group span-full">
-                <label className="field-label">Primary Residential Address</label>
+                <div className="field-label-row">
+                  <label className="field-label">Primary Residential Address</label>
+                  <VoiceMicButton
+                    fieldLabel="Address"
+                    currentValue=""
+                    appendMode={true}
+                    onTranscribe={(text) => setValue('primaryAddress', text, { shouldValidate: true, shouldDirty: true })}
+                  />
+                </div>
                 <Controller
                   name="primaryAddress"
                   control={control}

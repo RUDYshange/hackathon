@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeInput } from '../../security/sanitizer';
+import { VoiceMicButton } from './VoiceMicButton';
 
 interface SecureInputProps {
   id?: string;
@@ -13,6 +14,7 @@ interface SecureInputProps {
   error?: string;
   disabled?: boolean;
   helpText?: string;
+  enableVoice?: boolean;
 }
 
 export const SecureInput: React.FC<SecureInputProps> = ({
@@ -26,7 +28,8 @@ export const SecureInput: React.FC<SecureInputProps> = ({
   required,
   error,
   disabled,
-  helpText
+  helpText,
+  enableVoice = true
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Sanitize input live to prevent malicious script injection
@@ -34,11 +37,28 @@ export const SecureInput: React.FC<SecureInputProps> = ({
     onChange(cleaned);
   };
 
+  const handleVoiceTranscribe = (transcribedText: string) => {
+    const cleaned = sanitizeInput(transcribedText);
+    onChange(cleaned);
+  };
+
+  const showVoice = enableVoice && (type === 'text' || type === 'email' || type === 'tel');
+
   return (
     <div className="form-group">
-      <label htmlFor={id || name} className="field-label">
-        {label} {required && <span className="text-required">*</span>}
-      </label>
+      <div className="field-label-row">
+        <label htmlFor={id || name} className="field-label">
+          {label} {required && <span className="text-required">*</span>}
+        </label>
+        {showVoice && (
+          <VoiceMicButton
+            fieldLabel={label}
+            currentValue={value ? String(value) : ''}
+            onTranscribe={handleVoiceTranscribe}
+            disabled={disabled}
+          />
+        )}
+      </div>
       <input
         id={id || name}
         name={name}

@@ -1337,3 +1337,724 @@ body { background: var(--paper); color: var(--ink); font-family: var(--sans); }
   .add-reminder-form { grid-template-columns: 1fr; }.add-reminder-actions { justify-content: flex-start; }
   .calendar-toolbar { align-items: flex-start; flex-direction: column; }.calendar-day { min-height: 68px; padding: 5px; }.calendar-event { font-size: 0; min-height: 5px; padding: 0; }.calendar-more { font-size: 9px; }
 }
+
+/* ==============================================================================
+   Gemini 3.5 Transcribe Live & Voice Form Dictation System
+   ============================================================================== */
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.field-label-row .field-label {
+  margin-bottom: 0;
+}
+
+/* Inline Microphone Button */
+.voice-mic-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-mic-btn {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  padding: 0;
+}
+
+.voice-mic-btn:hover {
+  background: var(--royal-tint);
+  border-color: var(--royal);
+  color: var(--royal);
+}
+
+.voice-mic-btn.active {
+  background: #fff5f2;
+  border-color: #e53e3e;
+  color: #e53e3e;
+  box-shadow: 0 0 8px rgba(229, 62, 62, 0.35);
+}
+
+.voice-mic-btn.connecting {
+  background: #fffdf5;
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.mic-active-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.mic-wave-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  border: 1.5px solid #e53e3e;
+  pointer-events: none;
+  transition: transform 0.08s ease-out, opacity 0.08s ease-out;
+}
+
+.mic-listening-icon {
+  animation: pulse-mic 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-mic {
+  0% { transform: scale(0.95); opacity: 0.85; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.85; }
+}
+
+.voice-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: #e53e3e;
+  background: #fff5f2;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(229, 62, 62, 0.2);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #e53e3e;
+  display: inline-block;
+  animation: blink-dot 1s infinite alternate ease-in-out;
+}
+
+@keyframes blink-dot {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Voice Assistant Card Banner */
+.voice-assistant-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafc 100%);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--royal);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.voice-assistant-card.listening-glow {
+  border-color: var(--royal);
+  border-left-color: #e53e3e;
+  box-shadow: 0 4px 18px rgba(34, 66, 158, 0.12), 0 0 0 1px rgba(34, 66, 158, 0.2);
+}
+
+.voice-assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #f8f9fc;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.voice-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.voice-model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: var(--ink);
+}
+
+.voice-tag-badge {
+  background: var(--royal-tint);
+  color: var(--royal-deep);
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.voice-subtitle {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.voice-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-icon-subtle {
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-subtle:hover {
+  background: var(--line-2);
+  color: var(--ink);
+}
+
+.voice-assistant-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Action Strip */
+.voice-action-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btn-voice-record {
+  background: var(--royal);
+  color: #fff;
+  border: 1px solid var(--royal);
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-voice-record:hover {
+  background: var(--royal-deep);
+  border-color: var(--royal-deep);
+}
+
+.btn-voice-record.recording {
+  background: #c53030;
+  border-color: #9b2c2c;
+  animation: pulse-bg 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-bg {
+  0% { box-shadow: 0 0 0 0 rgba(197, 48, 48, 0.4); }
+  100% { box-shadow: 0 0 0 6px rgba(197, 48, 48, 0); }
+}
+
+/* Audio Wave Equalizer */
+.audio-visualizer-strip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+}
+
+.visualizer-bar {
+  display: block;
+  width: 3px;
+  min-height: 4px;
+  background: var(--royal);
+  border-radius: 1px;
+  transition: height 0.06s ease-out;
+}
+
+.voice-assistant-card.listening-glow .visualizer-bar {
+  background: #e53e3e;
+}
+
+.voice-status-text {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  flex: 1;
+  min-width: 160px;
+}
+
+.voice-strip-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.voice-applied-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ok-tint);
+  border: 1px solid rgba(11, 107, 69, 0.25);
+  color: var(--ok);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 3px;
+  animation: reference-enter 0.2s ease;
+}
+
+/* Live Streaming Transcript */
+.voice-transcript-box {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 12px 14px;
+}
+
+.transcript-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+
+.transcript-streaming-tag {
+  color: #e53e3e;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.transcript-content {
+  min-height: 36px;
+}
+
+.transcript-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.transcript-interim {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.transcript-placeholder {
+  font-size: 12.5px;
+  color: #94a3b8;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Extracted Entity Chips */
+.voice-extracted-section {
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  padding: 12px 14px;
+}
+
+.extracted-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.extracted-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.extracted-counter {
+  font-size: 11px;
+  font-family: var(--mono);
+  background: var(--royal-tint);
+  color: var(--royal-deep);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.extracted-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.extracted-chip {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extracted-chip.highlight {
+  border-color: var(--royal);
+  background: #fafbfe;
+}
+
+.extracted-chip.span-full {
+  grid-column: 1 / -1;
+}
+
+.chip-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.chip-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Prompt sample suggestions */
+.voice-sample-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.sample-strip-label {
+  font-size: 11.5px;
+}
+
+.btn-sample-prompt {
+  background: #fff;
+  border: 1px dashed var(--line);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  padding: 4px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sample-prompt:hover {
+  border-color: var(--royal);
+  color: var(--royal);
+  background: var(--royal-tint);
+}
+
+/* API Key Modal */
+.voice-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 22, 38, 0.55);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.voice-modal-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 100%;
+  max-width: 480px;
+  padding: 22px;
+  box-shadow: 0 12px 36px rgba(15, 22, 38, 0.2);
+  animation: reference-enter 0.18s ease;
+}
+
+.voice-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.voice-modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.voice-modal-desc {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.voice-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* ==============================================================================
+   Log Claim Modal & Voice Intake Dialog
+   ============================================================================== */
+
+.badge-voice-pill {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+.claim-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 22, 38, 0.65);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 120;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.claim-modal-dialog {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 780px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(15, 22, 38, 0.25);
+  animation: reference-enter 0.2s ease-out;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.claim-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line-2);
+  padding-bottom: 14px;
+}
+
+.modal-icon-badge {
+  background: var(--royal-tint);
+  color: var(--royal-deep);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 2px 0;
+}
+
+.modal-subtitle {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+/* Voice Hub */
+.claim-voice-hub {
+  background: linear-gradient(180deg, #f8fafd 0%, #f1f4fb 100%);
+  border: 1.5px solid #d4def2;
+  border-radius: 6px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.claim-voice-hub.active-listening {
+  border-color: #e53e3e;
+  background: #fffdfd;
+  box-shadow: 0 0 16px rgba(229, 62, 62, 0.15);
+}
+
+.voice-hub-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.voice-protocol-pill {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: var(--mono);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+}
+
+.auto-fill-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-fill-toggle input {
+  accent-color: var(--royal);
+}
+
+.voice-hub-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Real-time What You're Saying Box */
+.voice-live-text-card {
+  background: #fff;
+  border: 1px solid #ccd8ec;
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+
+.live-text-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+
+.live-badge {
+  background: #fff5f2;
+  color: #e53e3e;
+  font-size: 10px;
+  font-family: var(--mono);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(229, 62, 62, 0.2);
+}
+
+.spoken-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.interim-tail {
+  color: var(--ink-3);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.spoken-placeholder {
+  font-size: 12.5px;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.claim-samples-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Claim Form Fields */
+.claim-entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.claim-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--line-2);
+  padding-top: 16px;
+  margin-top: 6px;
+}

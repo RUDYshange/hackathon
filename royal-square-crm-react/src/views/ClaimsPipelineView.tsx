@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { secureFetch } from '../services/api';
-import { ChevronRight, CheckSquare, Square, Clock } from 'lucide-react';
+import { LogClaimModal } from '../components/forms/LogClaimModal';
+import { ChevronRight, CheckSquare, Square, Clock, FilePlus2, Mic } from 'lucide-react';
 
 interface SceneItem {
   item: string;
@@ -34,10 +35,17 @@ interface ClaimResponse {
   log: ClaimLog[];
 }
 
-export const ClaimsPipelineView: React.FC = () => {
+interface ClaimsPipelineViewProps {
+  initialOpenLogClaim?: boolean;
+}
+
+export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
+  initialOpenLogClaim = false
+}) => {
   const [claims, setClaims] = useState<ClaimResponse[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(initialOpenLogClaim);
 
   const fetchClaims = async () => {
     setIsLoading(true);
@@ -58,6 +66,12 @@ export const ClaimsPipelineView: React.FC = () => {
     fetchClaims();
   }, []);
 
+  useEffect(() => {
+    if (initialOpenLogClaim) {
+      setIsLogModalOpen(true);
+    }
+  }, [initialOpenLogClaim]);
+
   const handleAdvance = async (claimId: string) => {
     const res = await secureFetch<ClaimResponse>(`/claims/${claimId}/advance`, { method: 'POST' });
     if (res.data) {
@@ -76,11 +90,24 @@ export const ClaimsPipelineView: React.FC = () => {
 
   return (
     <div className="view-container">
-      <div className="view-header">
+      {/* View Header with Voice-Enabled Log Claim Button */}
+      <div className="view-header flex justify-between items-center">
         <div>
           <h1 className="view-title">Insurance Claims Pipeline</h1>
-          <p className="view-subtitle">Ten-stage claims adjudication workflow & scene investigation</p>
+          <p className="view-subtitle">Ten-stage claims adjudication workflow & voice intake</p>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-primary flex items-center gap-2"
+          onClick={() => setIsLogModalOpen(true)}
+        >
+          <FilePlus2 size={16} />
+          <span>Log New Claim</span>
+          <span className="badge-voice-pill">
+            <Mic size={11} /> Voice AI
+          </span>
+        </button>
       </div>
 
       {isLoading && claims.length === 0 ? (
@@ -89,14 +116,35 @@ export const ClaimsPipelineView: React.FC = () => {
           <p>Loading active claims pipeline...</p>
         </div>
       ) : claims.length === 0 ? (
-        <div className="empty-state">
-          <p>No claims currently registered. Use the Server-Driven UI tab to lodge a new claim.</p>
+        <div className="empty-state p-8 text-center bg-panel border rounded-md">
+          <FilePlus2 size={36} className="mx-auto text-muted mb-3" />
+          <h3 className="font-semibold text-lg mb-1">No Claims Registered Yet</h3>
+          <p className="text-muted text-sm mb-4">
+            Use the voice assistant to speak and register your first insurance claim in seconds.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary mx-auto flex items-center gap-2"
+            onClick={() => setIsLogModalOpen(true)}
+          >
+            <Mic size={15} /> Log Claim with Gemini Voice
+          </button>
         </div>
       ) : (
         <div className="claims-layout">
           {/* Claims List sidebar */}
           <div className="claims-sidebar">
-            <h3 className="sidebar-title">Active Claims ({claims.length})</h3>
+            <div className="sidebar-header-row flex justify-between items-center p-3 border-b">
+              <h3 className="sidebar-title m-0 p-0 border-0">Active Claims ({claims.length})</h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs flex items-center gap-1"
+                onClick={() => setIsLogModalOpen(true)}
+                title="Log a new claim"
+              >
+                <FilePlus2 size={12} /> New
+              </button>
+            </div>
             <div className="claims-list">
               {claims.map((claim) => (
                 <div
@@ -109,7 +157,7 @@ export const ClaimsPipelineView: React.FC = () => {
                     <span className="claim-stage-tag">{claim.stage.replace('_', ' ')}</span>
                   </div>
                   <h4 className="claim-client">{claim.clientName}</h4>
-                  <p className="claim-meta">{claim.insurer} • {claim.claimType.replace('_', ' ')}</p>
+                  <p className="claim-meta">{claim.insurer} &bull; {claim.claimType.replace('_', ' ')}</p>
                 </div>
               ))}
             </div>
@@ -195,6 +243,15 @@ export const ClaimsPipelineView: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Voice-Enabled Log Claim Modal */}
+      <LogClaimModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        onClaimCreated={() => {
+          fetchClaims();
+        }}
+      />
     </div>
   );
 };

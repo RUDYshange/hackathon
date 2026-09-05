@@ -1,6 +1,7 @@
 """Django settings for Royal Square CRM — Secure by Design."""
 from pathlib import Path
 import os
+import dj_database_url
 from dotenv import load_dotenv
 from urllib.parse import parse_qs, urlparse
 
@@ -63,38 +64,50 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database Configuration (Supabase PostgreSQL)
+# Database Configuration
 DB_URL = os.getenv('DB_URL')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_SSLMODE = os.getenv('DB_SSLMODE', 'require')
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
 
-if not DB_URL or not DB_USER or not DB_PASSWORD:
-    raise ValueError("DB_URL, DB_USER, and DB_PASSWORD must be set for Supabase PostgreSQL")
-
-normalized_db_url = DB_URL.removeprefix('jdbc:')
-parsed_db_url = urlparse(normalized_db_url)
-db_query = parse_qs(parsed_db_url.query)
-
-if parsed_db_url.scheme not in ('postgresql', 'postgres'):
-    raise ValueError("DB_URL must be a PostgreSQL connection URL")
-
-if not parsed_db_url.hostname:
-    raise ValueError("DB_URL must include a database host")
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': parsed_db_url.path.lstrip('/') or 'postgres',
-        'USER': DB_USER,
-        'PASSWORD': DB_PASSWORD,
-        'HOST': parsed_db_url.hostname,
-        'PORT': parsed_db_url.port or 5432,
-        'OPTIONS': {
-            'sslmode': db_query.get('sslmode', [DB_SSLMODE])[0],
+if DB_URL and DB_USER and DB_PASSWORD:
+    normalized_db_url = DB_URL.removeprefix('jdbc:')
+    parsed_db_url = urlparse(normalized_db_url)
+    db_query = parse_qs(parsed_db_url.query)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_db_url.path.lstrip('/') or 'postgres',
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': parsed_db_url.hostname,
+            'PORT': parsed_db_url.port or 5432,
+            'OPTIONS': {
+                'sslmode': db_query.get('sslmode', [DB_SSLMODE])[0],
+            }
         }
     }
-}
+elif DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASE_NAME = os.getenv('DATABASE_NAME', 'royalsquare.sqlite3')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / DATABASE_NAME,
+            'OPTIONS': {
+                'timeout': 20,
+            }
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

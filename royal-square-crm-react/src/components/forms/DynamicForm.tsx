@@ -4,6 +4,9 @@ import { SecureInput } from './SecureInput';
 import { MaskedIdInput } from './MaskedIdInput';
 import { CurrencyInput } from './CurrencyInput';
 import { HoneypotField } from './HoneypotField';
+import { VoiceFormAssistant } from './VoiceFormAssistant';
+import { VoiceMicButton } from './VoiceMicButton';
+import { ExtractedClientData } from '../../services/formFieldExtractor';
 import { acquireSubmissionLock, releaseSubmissionLock } from '../../security/csrf';
 import { secureFetch } from '../../services/api';
 import { Shield, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -45,6 +48,26 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     }));
   };
 
+  const handleApplyVoiceData = (extracted: ExtractedClientData) => {
+    setFormData((prev) => {
+      const next = { ...prev };
+      // Map extracted client data keys directly or to matching field names
+      for (const [key, value] of Object.entries(extracted)) {
+        if (value !== undefined && value !== null && value !== '') {
+          if (next.hasOwnProperty(key)) {
+            next[key] = value;
+          }
+          // Also check snake_case variant
+          const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          if (next.hasOwnProperty(snakeKey)) {
+            next[snakeKey] = value;
+          }
+        }
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
@@ -69,23 +92,26 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     setIsSubmitting(true);
 
     try {
-      // 3. Make secure API request
-      const response = await secureFetch(schema.submitEndpoint, {
-        method: schema.method || 'POST',
-        body: JSON.stringify(formData)
+      const endpoint = schema.submitEndpoint || '/ui/submit';
+      const res = await secureFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+          formId: schema.formId,
+          payload: formData
+        })
       });
 
-      if (response.error) {
-        setSubmitError(response.error);
-        if (onError) onError(response.error);
+      if (res.error) {
+        setSubmitError(res.error);
+        onError?.(res.error);
       } else {
-        setSubmitSuccess('Form submitted successfully and secured under POPIA protocols.');
-        if (onSuccess) onSuccess(response.data);
+        setSubmitSuccess('Form submitted successfully!');
+        onSuccess?.(res.data);
       }
     } catch (err: any) {
-      const msg = err.message || 'An unexpected error occurred';
+      const msg = err.message || 'Submission failed';
       setSubmitError(msg);
-      if (onError) onError(msg);
+      onError?.(msg);
     } finally {
       setIsSubmitting(false);
       if (schema.security?.preventDoubleSubmit) {
@@ -100,17 +126,20 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     switch (field.type) {
       case 'masked_rsa_id':
         return (
-          <MaskedIdInput
-            key={field.name}
-            value={value}
-            onChange={(val) => handleFieldChange(field.name, val)}
-            onDobDetected={(dob) => {
-              if (formData['dateOfBirth'] !== undefined) {
-                handleFieldChange('dateOfBirth', dob);
-              }
-            }}
-            disabled={isSubmitting}
-          />
+          <div key={field.name} className="form-group span-full">
+            <MaskedIdInput
+              value={value || ''}
+              onChange={(val) => handleFieldChange(field.name, val)}
+              onDobDetected={(dob) => {
+                if (formData.hasOwnProperty('dateOfBirth')) {
+                  handleFieldChange('dateOfBirth', dob);
+                } else if (formData.hasOwnProperty('date_of_birth')) {
+                  handleFieldChange('date_of_birth', dob);
+                }
+              }}
+              disabled={isSubmitting}
+            />
+          </div>
         );
 
       case 'currency':
@@ -152,9 +181,18 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
       case 'textarea':
         return (
           <div key={field.name} className="form-group span-full">
-            <label className="field-label">
-              {field.label} {field.required && <span className="text-required">*</span>}
-            </label>
+            <div className="field-label-row">
+              <label className="field-label">
+                {field.label} {field.required && <span className="text-required">*</span>}
+              </label>
+              <VoiceMicButton
+                fieldLabel={field.label}
+                currentValue={value ? String(value) : ''}
+                appendMode={true}
+                onTranscribe={(val) => handleFieldChange(field.name, val)}
+                disabled={isSubmitting}
+              />
+            </div>
             <textarea
               className="form-input form-textarea"
               rows={3}
@@ -180,6 +218,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
             required={field.required}
             disabled={isSubmitting}
             helpText={field.helpText}
+            enableVoice={true}
           />
         );
     }
@@ -201,6 +240,12 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
           <span>Server-Driven Form Engine</span>
         </div>
       </div>
+
+      {/* Voice Form Assistant */}
+      <VoiceFormAssistant
+        onApplyData={handleApplyVoiceData}
+        formType={schema.title}
+      />
 
       {submitError && (
         <div className="alert-banner alert-error">

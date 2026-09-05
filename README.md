@@ -57,6 +57,29 @@ make check            # Run Django security checks and React build verification
 make clean            # Remove build caches and pycache
 ```
 
+### Supabase Database
+
+The Django backend uses local SQLite by default. To use a Supabase PostgreSQL
+database, copy the connection string from Supabase Dashboard > Connect and set
+`DATABASE_URL` (or `SUPABASE_DB_URL`) in `royal-square-crm-django/.env`:
+
+```dotenv
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+SUPABASE_URL=https://[PROJECT_REF].supabase.co
+SUPABASE_ANON_KEY=[PUBLIC_ANON_KEY]
+```
+
+Then apply the Django schema to Supabase:
+
+```bash
+cd royal-square-crm-django
+./venv/bin/python manage.py migrate
+```
+
+Keep the Supabase service-role key out of both the repository and the React
+environment. The React app may use only the public anon key if direct Supabase
+client access is added later.
+
 ---
 
 ## Manual Execution (Without Make)
