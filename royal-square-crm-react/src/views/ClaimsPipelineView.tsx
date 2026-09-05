@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { secureFetch } from '../services/api';
 import { LogClaimModal } from '../components/forms/LogClaimModal';
-import { ChevronRight, CheckSquare, Square, Clock, FilePlus2, Mic } from 'lucide-react';
+import { AccidentReportModal } from '../components/forms/AccidentReportModal';
+import { ChevronRight, CheckSquare, Square, Clock, FilePlus2, Mic, Car } from 'lucide-react';
 
 interface SceneItem {
   item: string;
@@ -37,15 +38,18 @@ interface ClaimResponse {
 
 interface ClaimsPipelineViewProps {
   initialOpenLogClaim?: boolean;
+  initialOpenAccidentReport?: boolean;
 }
 
 export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
-  initialOpenLogClaim = false
+  initialOpenLogClaim = false,
+  initialOpenAccidentReport = false
 }) => {
   const [claims, setClaims] = useState<ClaimResponse[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(initialOpenLogClaim);
+  const [isAccidentModalOpen, setIsAccidentModalOpen] = useState<boolean>(initialOpenAccidentReport);
 
   const fetchClaims = async () => {
     setIsLoading(true);
@@ -90,24 +94,35 @@ export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
 
   return (
     <div className="view-container">
-      {/* View Header with Voice-Enabled Log Claim Button */}
+      {/* View Header with Voice-Enabled Log Claim & Accident Reporting */}
       <div className="view-header flex justify-between items-center">
         <div>
           <h1 className="view-title">Insurance Claims Pipeline</h1>
-          <p className="view-subtitle">Ten-stage claims adjudication workflow & voice intake</p>
+          <p className="view-subtitle">Ten-stage claims adjudication workflow & short-term accident intake</p>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-primary flex items-center gap-2"
-          onClick={() => setIsLogModalOpen(true)}
-        >
-          <FilePlus2 size={16} />
-          <span>Log New Claim</span>
-          <span className="badge-voice-pill">
-            <Mic size={11} /> Voice AI
-          </span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="btn btn-primary flex items-center gap-2"
+            onClick={() => setIsAccidentModalOpen(true)}
+          >
+            <Car size={16} />
+            <span>Report Accident (Short-Term)</span>
+            <span className="badge-voice-pill">
+              <Mic size={11} /> Google Maps & Smart STT
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary flex items-center gap-1.5"
+            onClick={() => setIsLogModalOpen(true)}
+          >
+            <FilePlus2 size={15} />
+            <span>Log Standard Claim</span>
+          </button>
+        </div>
       </div>
 
       {isLoading && claims.length === 0 ? (
@@ -117,18 +132,27 @@ export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
         </div>
       ) : claims.length === 0 ? (
         <div className="empty-state p-8 text-center bg-panel border rounded-md">
-          <FilePlus2 size={36} className="mx-auto text-muted mb-3" />
+          <Car size={40} className="mx-auto text-gold mb-3" />
           <h3 className="font-semibold text-lg mb-1">No Claims Registered Yet</h3>
-          <p className="text-muted text-sm mb-4">
-            Use the voice assistant to speak and register your first insurance claim in seconds.
+          <p className="text-muted text-sm mb-4 max-w-lg mx-auto">
+            Report a short-term motor accident with live Google Maps scene pinning and Gemini Smart Transcribe, or log a general insurance claim.
           </p>
-          <button
-            type="button"
-            className="btn btn-primary mx-auto flex items-center gap-2"
-            onClick={() => setIsLogModalOpen(true)}
-          >
-            <Mic size={15} /> Log Claim with Gemini Voice
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              className="btn btn-primary flex items-center gap-2"
+              onClick={() => setIsAccidentModalOpen(true)}
+            >
+              <Car size={16} /> Report Motor Accident (Short-Term)
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary flex items-center gap-2"
+              onClick={() => setIsLogModalOpen(true)}
+            >
+              <Mic size={15} /> Log Standard Claim
+            </button>
+          </div>
         </div>
       ) : (
         <div className="claims-layout">
@@ -244,10 +268,19 @@ export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
         </div>
       )}
 
-      {/* Voice-Enabled Log Claim Modal */}
+      {/* Voice-Enabled Standard Log Claim Modal */}
       <LogClaimModal
         isOpen={isLogModalOpen}
         onClose={() => setIsLogModalOpen(false)}
+        onClaimCreated={() => {
+          fetchClaims();
+        }}
+      />
+
+      {/* Short-Term Motor Accident Reporting Modal with Google Maps & Smart Transcribe */}
+      <AccidentReportModal
+        isOpen={isAccidentModalOpen}
+        onClose={() => setIsAccidentModalOpen(false)}
         onClaimCreated={() => {
           fetchClaims();
         }}

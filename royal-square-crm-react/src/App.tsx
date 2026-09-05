@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   Search,
   UserPlus,
-  ClipboardPlus
+  ClipboardPlus,
+  Car
 } from 'lucide-react';
 
 type ActiveTab = 'desk' | 'clients' | 'new-client' | 'sdui' | 'claims' | 'reminders';
@@ -21,10 +22,12 @@ type ActiveTab = 'desk' | 'clients' | 'new-client' | 'sdui' | 'claims' | 'remind
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
   const [openLogClaimDirectly, setOpenLogClaimDirectly] = useState<boolean>(false);
+  const [openAccidentReportDirectly, setOpenAccidentReportDirectly] = useState<boolean>(false);
 
-  const handleOpenClaims = (openModal = false) => {
+  const handleOpenClaims = (openModal = false, openAccident = false) => {
     setActiveTab('claims');
     setOpenLogClaimDirectly(openModal);
+    setOpenAccidentReportDirectly(openAccident);
   };
 
   return (
@@ -38,13 +41,13 @@ export const App: React.FC = () => {
 
         <nav className="crm-nav" aria-label="Main navigation">
           <span className="nav-section">Practice</span>
-          <NavItem active={activeTab === 'desk'} onClick={() => { setActiveTab('desk'); setOpenLogClaimDirectly(false); }} icon={<LayoutDashboard size={15} />} label="The desk" />
-          <NavItem active={activeTab === 'clients'} onClick={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); }} icon={<Users size={15} />} label="Clients" badge="3" />
-          <NavItem active={activeTab === 'reminders'} onClick={() => { setActiveTab('reminders'); setOpenLogClaimDirectly(false); }} icon={<Bell size={15} />} label="Reminders" badge="12" />
+          <NavItem active={activeTab === 'desk'} onClick={() => { setActiveTab('desk'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }} icon={<LayoutDashboard size={15} />} label="The desk" />
+          <NavItem active={activeTab === 'clients'} onClick={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }} icon={<Users size={15} />} label="Clients" badge="3" />
+          <NavItem active={activeTab === 'reminders'} onClick={() => { setActiveTab('reminders'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }} icon={<Bell size={15} />} label="Reminders" badge="12" />
           <span className="nav-section">Servicing</span>
-          <NavItem active={activeTab === 'claims'} onClick={() => handleOpenClaims(false)} icon={<FileCheck2 size={15} />} label="Claims" badge="2" />
-          <NavItem active={activeTab === 'new-client'} onClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); }} icon={<UserPlus size={15} />} label="Onboard client" />
-          <NavItem active={activeTab === 'sdui'} onClick={() => { setActiveTab('sdui'); setOpenLogClaimDirectly(false); }} icon={<Layers size={15} />} label="Form engine" />
+          <NavItem active={activeTab === 'claims'} onClick={() => handleOpenClaims(false, false)} icon={<FileCheck2 size={15} />} label="Claims" badge="2" />
+          <NavItem active={activeTab === 'new-client'} onClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }} icon={<UserPlus size={15} />} label="Onboard client" />
+          <NavItem active={activeTab === 'sdui'} onClick={() => { setActiveTab('sdui'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }} icon={<Layers size={15} />} label="Form engine" />
         </nav>
 
         <div className="adviser-card">
@@ -61,34 +64,56 @@ export const App: React.FC = () => {
             <input placeholder="Search clients, policies, claim numbers" />
           </label>
           <div className="topbar-spacer" />
-          <button className="btn btn-secondary" onClick={() => handleOpenClaims(true)}><ClipboardPlus size={15} /> Log a claim</button>
-          <button className="btn btn-primary" onClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); }}><UserPlus size={15} /> Add client</button>
+          <button
+            className="btn btn-primary flex items-center gap-1.5"
+            onClick={() => handleOpenClaims(false, true)}
+            title="Report Short-Term Motor Accident with Google Maps & Smart Transcribe"
+          >
+            <Car size={15} /> Report accident
+          </button>
+          <button
+            className="btn btn-secondary flex items-center gap-1.5"
+            onClick={() => handleOpenClaims(true, false)}
+          >
+            <ClipboardPlus size={15} /> Log standard claim
+          </button>
+          <button
+            className="btn btn-secondary flex items-center gap-1.5"
+            onClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
+          >
+            <UserPlus size={15} /> Add client
+          </button>
         </header>
 
         <main className="crm-content">
           {activeTab === 'desk' && (
             <DeskView
-              onOpenClients={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); }}
-              onOpenClaims={() => handleOpenClaims(false)}
-              onOpenReminders={() => { setActiveTab('reminders'); setOpenLogClaimDirectly(false); }}
+              onOpenClients={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
+              onOpenClaims={() => handleOpenClaims(false, false)}
+              onOpenReminders={() => { setActiveTab('reminders'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
             />
           )}
           {activeTab === 'clients' && (
             <ClientListView
-              onNewClientClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); }}
+              onNewClientClick={() => { setActiveTab('new-client'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
             />
           )}
 
           {activeTab === 'new-client' && (
             <SecureClientFormView
-              onBack={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); }}
-              onSuccess={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); }}
+              onBack={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
+              onSuccess={() => { setActiveTab('clients'); setOpenLogClaimDirectly(false); setOpenAccidentReportDirectly(false); }}
             />
           )}
 
           {activeTab === 'sdui' && <ServerDrivenFormView />}
 
-          {activeTab === 'claims' && <ClaimsPipelineView initialOpenLogClaim={openLogClaimDirectly} />}
+          {activeTab === 'claims' && (
+            <ClaimsPipelineView
+              initialOpenLogClaim={openLogClaimDirectly}
+              initialOpenAccidentReport={openAccidentReportDirectly}
+            />
+          )}
 
           {activeTab === 'reminders' && <RemindersView />}
         </main>
