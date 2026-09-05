@@ -1,7 +1,7 @@
 # ==============================================================================
 # Royal Square CRM — Root Makefile
 # ==============================================================================
-
+ 
 .PHONY: help run start run-local run-backend run-frontend install install-backend install-frontend setup migrate seed dev dev-backend dev-frontend build check clean
 
 PYTHON_DIR := royal-square-crm-django
