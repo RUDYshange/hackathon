@@ -9,6 +9,7 @@ import {
   Eye,
   Type,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   ChevronRight,
   CheckCircle2,
@@ -35,7 +36,10 @@ interface Reminder {
 
 type TextSize = 'base' | 'large' | 'xl';
 
-export const ClientDashboardView: React.FC<{ onReportAccident: () => void }> = ({ onReportAccident }) => {
+export const ClientDashboardView: React.FC<{ 
+  onReportAccident: () => void;
+  onReportLoss?: () => void;
+}> = ({ onReportAccident, onReportLoss }) => {
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -150,17 +154,27 @@ export const ClientDashboardView: React.FC<{ onReportAccident: () => void }> = (
             </p>
           </div>
 
-          <div className="flex flex-col items-stretch md:items-end gap-2 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch md:items-center gap-3 shrink-0">
             <button 
               onClick={onReportAccident}
-              aria-label="Report an accident or loss, opens incident form"
-              className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 text-white font-semibold px-6 py-3.5 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[48px] min-w-[200px]"
+              aria-label="Report a motor accident"
+              className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
             >
-              <Car className="w-5 h-5" aria-hidden="true" />
-              <span>Report Accident or Loss</span>
+              <Car className="w-4 h-4" aria-hidden="true" />
+              <span>Report Motor Accident</span>
               <ChevronRight className="w-4 h-4 opacity-70" aria-hidden="true" />
             </button>
-            <span className="text-xs text-slate-500 text-center md:text-right">24/7 • Photos, GPS & voice intake • Santam, Hollard & more</span>
+            {onReportLoss && (
+              <button 
+                onClick={onReportLoss}
+                aria-label="Report property or asset loss or theft"
+                className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-700 focus-visible:ring-offset-2 text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                <span>Report Loss or Theft</span>
+                <ChevronRight className="w-4 h-4 opacity-70" aria-hidden="true" />
+              </button>
+            )}
           </div>
         </header>
 

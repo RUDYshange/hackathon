@@ -1,21 +1,32 @@
 import { useState } from 'react';
 import { ClientDashboardView } from './views/ClientDashboardView';
-import { AccidentReportModal } from './components/forms/AccidentReportModal';
+import { AccidentReportPageView } from './views/AccidentReportPageView';
+import { ReportLossPageView } from './views/ReportLossPageView';
 
 export function App() {
-  const [showAccidentModal, setShowAccidentModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'report-accident' | 'report-loss'>('dashboard');
+
+  if (currentPage === 'report-accident') {
+    return (
+      <AccidentReportPageView
+        onBackToDashboard={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
+  if (currentPage === 'report-loss') {
+    return (
+      <ReportLossPageView
+        onBackToDashboard={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
 
   return (
-    <div>
-      <ClientDashboardView onReportAccident={() => setShowAccidentModal(true)} />
-      {showAccidentModal && (
-        <AccidentReportModal
-          isOpen={showAccidentModal}
-          onClose={() => setShowAccidentModal(false)}
-          onClaimCreated={() => setShowAccidentModal(false)}
-        />
-      )}
-    </div>
+    <ClientDashboardView
+      onReportAccident={() => setCurrentPage('report-accident')}
+      onReportLoss={() => setCurrentPage('report-loss')}
+    />
   );
 }
 
