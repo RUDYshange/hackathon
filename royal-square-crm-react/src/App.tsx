@@ -4,93 +4,69 @@ import { SecureClientFormView } from './views/SecureClientFormView';
 import { ServerDrivenFormView } from './views/ServerDrivenFormView';
 import { ClaimsPipelineView } from './views/ClaimsPipelineView';
 import { RemindersView } from './views/RemindersView';
+import { DeskView } from './views/DeskView';
 import {
   Users,
-  ShieldCheck,
   Layers,
   FileCheck2,
   Bell,
-  Lock,
-  Database
+  LayoutDashboard,
+  Search,
+  UserPlus,
+  ClipboardPlus
 } from 'lucide-react';
 
-type ActiveTab = 'clients' | 'new-client' | 'sdui' | 'claims' | 'reminders';
+type ActiveTab = 'desk' | 'clients' | 'new-client' | 'sdui' | 'claims' | 'reminders';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('clients');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
 
   return (
-    <div className="app-shell">
-      {/* Top Navbar */}
-      <header className="app-navbar">
-        <div className="nav-brand">
-          <div className="brand-logo">
-            <ShieldCheck size={22} className="text-gold" />
-          </div>
-          <div>
-            <span className="brand-title">Royal Square</span>
-            <span className="brand-subtitle">Wealth Management & Advisory CRM</span>
-          </div>
+    <div className="crm-app">
+      <aside className="crm-rail">
+        <div className="crm-brand">
+          <div className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></div>
+          <h1>Royal Square Financial</h1>
+          <p>FSP 29370</p>
         </div>
 
-        {/* Security / System Badges */}
-        <div className="system-status-badges">
-          <div className="badge-status online" title="FastAPI + SQLite (Layered Architecture)">
-            <Database size={13} />
-            <span>Python + SQLite</span>
-          </div>
-          <div className="badge-status secure" title="POPIA Luhn Verification & Field-Level Masking Active">
-            <Lock size={13} />
-            <span>POPIA & CSRF Hardened</span>
-          </div>
+        <nav className="crm-nav" aria-label="Main navigation">
+          <span className="nav-section">Practice</span>
+          <NavItem active={activeTab === 'desk'} onClick={() => setActiveTab('desk')} icon={<LayoutDashboard size={15} />} label="The desk" />
+          <NavItem active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} icon={<Users size={15} />} label="Clients" badge="6" />
+          <NavItem active={activeTab === 'reminders'} onClick={() => setActiveTab('reminders')} icon={<Bell size={15} />} label="Reminders" badge="12" />
+          <span className="nav-section">Servicing</span>
+          <NavItem active={activeTab === 'claims'} onClick={() => setActiveTab('claims')} icon={<FileCheck2 size={15} />} label="Claims" badge="2" />
+          <NavItem active={activeTab === 'new-client'} onClick={() => setActiveTab('new-client')} icon={<UserPlus size={15} />} label="Onboard client" />
+          <NavItem active={activeTab === 'sdui'} onClick={() => setActiveTab('sdui')} icon={<Layers size={15} />} label="Form engine" />
+        </nav>
+
+        <div className="adviser-card">
+          <div className="adviser-avatar">QN</div>
+          <div><b>Qiniso Ntuli</b><span>Key individual</span></div>
         </div>
-      </header>
+      </aside>
 
-      {/* Main Navigation Bar */}
-      <nav className="tab-nav">
-        <button
-          className={`tab-link ${activeTab === 'clients' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clients')}
-        >
-          <Users size={16} />
-          <span>Client Portfolio</span>
-        </button>
+      <div className="crm-main">
+        <header className="crm-topbar">
+          <label className="global-search">
+            <Search size={15} />
+            <span className="sr-only">Search</span>
+            <input placeholder="Search clients, policies, claim numbers" />
+          </label>
+          <div className="topbar-spacer" />
+          <button className="btn btn-secondary" onClick={() => setActiveTab('claims')}><ClipboardPlus size={15} /> Log a claim</button>
+          <button className="btn btn-primary" onClick={() => setActiveTab('new-client')}><UserPlus size={15} /> Add client</button>
+        </header>
 
-        <button
-          className={`tab-link ${activeTab === 'new-client' ? 'active' : ''}`}
-          onClick={() => setActiveTab('new-client')}
-        >
-          <Lock size={16} />
-          <span>Secure Onboarding Form</span>
-        </button>
-
-        <button
-          className={`tab-link ${activeTab === 'sdui' ? 'active' : ''}`}
-          onClick={() => setActiveTab('sdui')}
-        >
-          <Layers size={16} />
-          <span>Server-Driven UI Engine</span>
-        </button>
-
-        <button
-          className={`tab-link ${activeTab === 'claims' ? 'active' : ''}`}
-          onClick={() => setActiveTab('claims')}
-        >
-          <FileCheck2 size={16} />
-          <span>Claims Pipeline</span>
-        </button>
-
-        <button
-          className={`tab-link ${activeTab === 'reminders' ? 'active' : ''}`}
-          onClick={() => setActiveTab('reminders')}
-        >
-          <Bell size={16} />
-          <span>Compliance Reminders</span>
-        </button>
-      </nav>
-
-      {/* Content Area */}
-      <main className="app-content">
+      <main className="crm-content">
+        {activeTab === 'desk' && (
+          <DeskView
+            onOpenClients={() => setActiveTab('clients')}
+            onOpenClaims={() => setActiveTab('claims')}
+            onOpenReminders={() => setActiveTab('reminders')}
+          />
+        )}
         {activeTab === 'clients' && (
           <ClientListView
             onNewClientClick={() => setActiveTab('new-client')}
@@ -110,15 +86,15 @@ export const App: React.FC = () => {
 
         {activeTab === 'reminders' && <RemindersView />}
       </main>
-
-      {/* Footer Info */}
-      <footer className="app-footer">
-        <div className="footer-content">
-          <span>Royal Square CRM — Decoupled Layered Architecture (Python 3.12 + SQLite + React 18)</span>
-          <span className="footer-audit">POPIA Act 4 of 2013 & FAIS Compliant</span>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 };
+
+const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: string }> = ({ active, onClick, icon, label, badge }) => (
+  <button className="crm-nav-item" aria-current={active ? 'page' : undefined} onClick={onClick}>
+    <span className="nav-icon">{icon}</span><span>{label}</span>{badge && <span className="nav-badge">{badge}</span>}
+  </button>
+);
+
 export default App;
