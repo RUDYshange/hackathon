@@ -11,8 +11,9 @@ royal-square-crm/
 ├── royal-square-crm-django/      # Django 5 + DRF + Neon PostgreSQL (Layered Architecture)
 │   ├── config/                   # Project settings, URLs, WSGI
 │   ├── crm/
-│   │   ├── views/                # [Layer 1] DRF Presentation / Endpoints
+│   │   ├── views/                # [Layer 1] DRF Presentation / Endpoints (+ assistant_views)
 │   │   ├── services/             # [Layer 2] Business Logic, Math & POPIA Masking
+│   │   │                         #           (+ assistant_service, assistant_tools — Groq voice agent)
 │   │   ├── rules/                # [Rules Engine] Pluggable Compliance & Review Rules
 │   │   ├── repositories/         # [Layer 3] Data Access Layer
 │   │   ├── serializers/          # DRF DTOs & Validation
@@ -24,6 +25,7 @@ royal-square-crm/
 └── royal-square-crm-react/       # React 18 + TypeScript + Vite (Hardened Frontend)
     ├── src/
     │   ├── components/
+    │   │   ├── VoiceAssistant.tsx # Floating multilingual voice chatbot (all pages)
     │   │   ├── forms/            # DynamicForm, MaskedIdInput, CurrencyInput, Honeypot
     │   │   └── ui/               # Design system primitives
     │   ├── security/             # POPIA RSA ID Luhn check, XSS sanitizer, CSRF locks
@@ -104,6 +106,62 @@ npm install
 npm run dev
 ```
 - Web Application: `http://localhost:5173` (proxies `/api` directly to port 8000)
+
+---
+
+## Multilingual Voice Assistant
+
+A floating assistant is available on **every page** of the app (the gold button
+in the bottom-right corner). Advisers can speak to the CRM in **any South
+African language** — the assistant transcribes the speech, understands the
+request, performs the action, and replies in the same language.
+
+### Pipeline
+
+```
+🎙️ Speech (any SA language)
+   → Groq Whisper (speech-to-text)                    [Django backend]
+   → Groq Llama-class agent with CRM tool definitions [Django backend]
+        → decides which CRM tool to call (clients / claims / reminders)
+        → executes it through the existing crm/services layer
+   → reply written back in the user's language        [rendered in the chat bubble]
+```
+
+Everything runs through **one provider (Groq)** and a single server-side key —
+no GPU, no per-request infrastructure. Audio is sent to the Django API; the Groq
+key never reaches the browser.
+
+### What it can do
+
+Read: list/search clients, open a client profile, list claims, open a claim,
+list open compliance reminders. Write: onboard a client, register a claim,
+advance a claim through the pipeline, toggle scene-evidence checklist items, and
+dismiss reminders. Write actions can be disabled with a single flag
+(`ASSISTANT_ENABLE_WRITE_ACTIONS=False`) for a read-only assistant.
+
+Example prompts (spoken or typed):
+- English: “How many open claims do we have?”
+- Afrikaans: “Wys my Sipho se profiel.”
+- isiZulu: “Zingaki izimangalo esizivulile?”
+
+### Configuration
+
+The assistant is configured entirely in `royal-square-crm-django/.env`:
+
+```dotenv
+# Get a free key at https://console.groq.com
+GROQ_API_KEY=your-groq-key
+GROQ_WHISPER_MODEL=whisper-large-v3
+GROQ_AGENT_MODEL=openai/gpt-oss-120b
+ASSISTANT_ENABLE_WRITE_ACTIONS=True
+```
+
+The endpoint is `POST /api/assistant/voice` — it accepts either an `audio`
+file (multipart) or a `text` message (JSON), plus optional conversation
+`history`, and returns `{ transcript, language, reply, actions }`.
+
+> Microphone capture requires a secure context. It works on `localhost` during
+> development; a deployed demo must be served over HTTPS for the mic to work.
 
 ---
 

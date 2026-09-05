@@ -136,6 +136,15 @@ REST_FRAMEWORK = {
     ]
 }
 
+# Voice Assistant (Groq) — server-side only.
+# One key powers speech-to-text (Whisper) and the tool-calling agent brain
+# (Llama 3.3 70B) for the multilingual voice chatbot.
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+GROQ_WHISPER_MODEL = os.getenv('GROQ_WHISPER_MODEL', 'whisper-large-v3')
+GROQ_AGENT_MODEL = os.getenv('GROQ_AGENT_MODEL', 'openai/gpt-oss-120b')
+# When False, the assistant is restricted to read-only tools.
+ASSISTANT_ENABLE_WRITE_ACTIONS = os.getenv('ASSISTANT_ENABLE_WRITE_ACTIONS', 'True').lower() in ('true', '1')
+
 # CORS & CSRF Configuration
 CORS_ALLOWED_ORIGINS = [
     orig.strip() for orig in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if orig.strip()

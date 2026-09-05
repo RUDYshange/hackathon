@@ -8,6 +8,7 @@ from crm.views.claim_views import (
 )
 from crm.views.reminder_views import ReminderListView, RuleListView, ReminderDismissView
 from crm.views.ui_views import ClientFormSchemaView, ClaimFormSchemaView
+from crm.views.assistant_views import AssistantVoiceView
 
 urlpatterns = [
     # Clients
@@ -33,6 +34,10 @@ urlpatterns = [
     path('reminders/rules/', RuleListView.as_view()),
     path('reminders/dismiss', ReminderDismissView.as_view()),
     path('reminders/dismiss/', ReminderDismissView.as_view()),
+
+    # Voice Assistant (Groq Whisper + Llama tool-calling)
+    path('assistant/voice', AssistantVoiceView.as_view()),
+    path('assistant/voice/', AssistantVoiceView.as_view()),
 
     # Server-Driven UI Schemas
     path('ui/schemas/client-form', ClientFormSchemaView.as_view()),

@@ -5,6 +5,7 @@ import { ServerDrivenFormView } from './views/ServerDrivenFormView';
 import { ClaimsPipelineView } from './views/ClaimsPipelineView';
 import { RemindersView } from './views/RemindersView';
 import { DeskView } from './views/DeskView';
+import { VoiceAssistant } from './components/VoiceAssistant';
 import {
   Users,
   Layers,
@@ -118,6 +119,8 @@ export const App: React.FC = () => {
           {activeTab === 'reminders' && <RemindersView />}
         </main>
       </div>
+
+      <VoiceAssistant />
     </div>
   );
 };
