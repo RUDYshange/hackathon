@@ -1308,6 +1308,9 @@ body { background: var(--paper); color: var(--ink); font-family: var(--sans); }
 .reminder-card { border-left: 3px solid var(--royal); box-shadow: none; padding: 16px 18px; }
 .reminder-card.bucket-overdue { border-left-color: var(--alert); }
 .reminder-title, .reminder-desc { color: var(--ink); }
+.add-reminder-form { align-items: end; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: minmax(180px, 1.7fr) minmax(140px, 1fr) 150px 130px; padding: 16px 18px; }
+.add-reminder-form-heading { align-items: flex-start; display: flex; grid-column: 1 / -1; justify-content: space-between; }.add-reminder-form h2 { color: var(--ink); font-size: 14px; font-weight: 600; }.add-reminder-form p { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+.add-reminder-form label { display: flex; flex-direction: column; gap: 5px; }.add-reminder-form label span { color: var(--ink-2); font-size: 11px; font-weight: 600; }.add-reminder-form input, .add-reminder-form select { background: #fff; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); font: inherit; min-height: 34px; outline-color: var(--royal); padding: 6px 8px; }.add-reminder-actions { display: flex; gap: 7px; grid-column: 1 / -1; justify-content: flex-end; }
 .reminder-calendar { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(15,22,38,.04); }
 .calendar-toolbar { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 18px; padding: 15px 18px; }
 .calendar-toolbar h2, .reminder-list-header h2 { color: var(--ink); font-size: 15px; font-weight: 600; }.calendar-toolbar p { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
@@ -1331,5 +1334,6 @@ body { background: var(--paper); color: var(--ink); font-family: var(--sans); }
   .global-search { max-width: none; order: -1; }
   .topbar-spacer, .date-strip-divider { display: none; }
   .date-strip { gap: 15px; }
+  .add-reminder-form { grid-template-columns: 1fr; }.add-reminder-actions { justify-content: flex-start; }
   .calendar-toolbar { align-items: flex-start; flex-direction: column; }.calendar-day { min-height: 68px; padding: 5px; }.calendar-event { font-size: 0; min-height: 5px; padding: 0; }.calendar-more { font-size: 9px; }
 }

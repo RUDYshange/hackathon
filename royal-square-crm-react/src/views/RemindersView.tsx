@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import { secureFetch } from '../services/api';
-import { BellRing, Check, ShieldCheck, Clock, Mail, MessageSquare, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BellRing, Check, ShieldCheck, Clock, Mail, MessageSquare, Calendar, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface Reminder {
   key: string;
@@ -20,6 +20,8 @@ export const RemindersView: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newReminder, setNewReminder] = useState({ title: '', clientName: '', dueOn: dateToKey(new Date()), channel: 'CALENDAR' });
 
   const fetchReminders = async () => {
     setIsLoading(true);
@@ -68,6 +70,25 @@ export const RemindersView: React.FC = () => {
     setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + amount, 1));
   };
 
+  const openAddForm = () => {
+    const dueOn = selectedDate || dateToKey(new Date());
+    setNewReminder((current) => ({ ...current, dueOn }));
+    setIsAdding(true);
+  };
+  const handleAddReminder = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!newReminder.title.trim()) return;
+    const dueDate = new Date(`${newReminder.dueOn}T12:00:00`);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysUntilDue = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+    const bucket: Reminder['bucket'] = daysUntilDue < 0 ? 'OVERDUE' : daysUntilDue <= 7 ? 'DUE_SOON' : 'UPCOMING';
+    setReminders((current) => [{
+      key: `manual-${crypto.randomUUID()}`, clientId: 'manual', clientName: newReminder.clientName.trim() || 'General', ruleName: 'Adviser-created reminder',
+      title: newReminder.title.trim(), dueOn: newReminder.dueOn, daysUntilDue, bucket, recipient: 'Adviser', channel: newReminder.channel
+    }, ...current]);
+    setCalendarMonth(startOfMonth(dueDate)); setSelectedDate(newReminder.dueOn); setNewReminder({ title: '', clientName: '', dueOn: dateToKey(new Date()), channel: 'CALENDAR' }); setIsAdding(false);
+  };
+
   return (
     <div className="view-container">
       <div className="view-header">
@@ -75,7 +96,17 @@ export const RemindersView: React.FC = () => {
           <h1 className="view-title">Compliance & Advisory Reminders</h1>
           <p className="view-subtitle">Derived dynamically from rules engine — zero stale reminders</p>
         </div>
+        <button className="btn btn-primary" onClick={openAddForm}><Plus size={15} /> Add reminder</button>
       </div>
+
+      {isAdding && <form className="add-reminder-form" onSubmit={handleAddReminder}>
+        <div className="add-reminder-form-heading"><div><h2>Add calendar reminder</h2><p>This reminder will be added to the current calendar session.</p></div><button type="button" className="icon-button" onClick={() => setIsAdding(false)} aria-label="Close add reminder form"><X size={17} /></button></div>
+        <label><span>Reminder</span><input autoFocus required value={newReminder.title} onChange={(event) => setNewReminder((current) => ({ ...current, title: event.target.value }))} placeholder="e.g. Confirm annual review" /></label>
+        <label><span>Client (optional)</span><input value={newReminder.clientName} onChange={(event) => setNewReminder((current) => ({ ...current, clientName: event.target.value }))} placeholder="Client name" /></label>
+        <label><span>Due date</span><input required type="date" value={newReminder.dueOn} onChange={(event) => setNewReminder((current) => ({ ...current, dueOn: event.target.value }))} /></label>
+        <label><span>Channel</span><select value={newReminder.channel} onChange={(event) => setNewReminder((current) => ({ ...current, channel: event.target.value }))}><option value="CALENDAR">Calendar</option><option value="EMAIL">Email</option><option value="SMS">SMS</option></select></label>
+        <div className="add-reminder-actions"><button type="button" className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button><button className="btn btn-primary" type="submit"><Plus size={15} /> Add to calendar</button></div>
+      </form>}
 
       {isLoading ? (
         <div className="loading-container">
