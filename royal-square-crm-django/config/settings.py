@@ -63,41 +63,60 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database Configuration — Neon PostgreSQL (single source of truth)
-# Neon exposes one connection string, copied from the Neon Console > Connect:
-#   postgresql://<user>:<password>@<endpoint>.<region>.aws.neon.tech/<db>?sslmode=require&channel_binding=require
-# Provide it via DATABASE_URL. Neon requires SSL, so sslmode=require is enforced
-# even if the query string omits it. Prefer the pooled ("-pooler") endpoint for
-# the running app; use the direct endpoint only for one-off migrations if needed.
+# Database Configuration — Neon PostgreSQL & Supabase PostgreSQL
 DATABASE_URL = os.getenv('DATABASE_URL')
+DB_URL = os.getenv('DB_URL')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
 
-if not DATABASE_URL:
-    raise ValueError(
-        "CRITICAL CONFIG ERROR: DATABASE_URL must be set in .env to connect to the "
-        "Neon PostgreSQL database. Copy it from the Neon Console > Connect."
-    )
+if DATABASE_URL:
+    parsed_db_url = urlparse(DATABASE_URL)
+    db_query = {key: values[0] for key, values in parse_qs(parsed_db_url.query).items()}
+    db_options = {'sslmode': os.getenv('DB_SSLMODE', 'require')}
+    db_options.update(db_query)
 
-parsed_db_url = urlparse(DATABASE_URL)
-db_query = {key: values[0] for key, values in parse_qs(parsed_db_url.query).items()}
-
-# Neon mandates TLS. Carry through any libpq params Neon includes in the DSN
-# (sslmode, channel_binding, options, ...) and guarantee sslmode is present.
-db_options = {'sslmode': os.getenv('DB_SSLMODE', 'require')}
-db_options.update(db_query)
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': parsed_db_url.path.lstrip('/') or 'neondb',
-        'USER': parsed_db_url.username,
-        'PASSWORD': parsed_db_url.password,
-        'HOST': parsed_db_url.hostname,
-        'PORT': parsed_db_url.port or 5432,
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
-        'CONN_HEALTH_CHECKS': True,
-        'OPTIONS': db_options,
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_db_url.path.lstrip('/') or 'neondb',
+            'USER': parsed_db_url.username,
+            'PASSWORD': parsed_db_url.password,
+            'HOST': parsed_db_url.hostname,
+            'PORT': parsed_db_url.port or 5432,
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': db_options,
+        }
     }
-}
+elif DB_URL and DB_USER and DB_PASSWORD:
+    normalized_db_url = DB_URL.removeprefix('jdbc:')
+    parsed_db_url = urlparse(normalized_db_url)
+    db_query = parse_qs(parsed_db_url.query)
+    sslmode = db_query.get('sslmode', [os.getenv('DB_SSLMODE', 'require')])[0]
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_db_url.path.lstrip('/') or 'postgres',
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': parsed_db_url.hostname,
+            'PORT': parsed_db_url.port or 5432,
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'sslmode': sslmode,
+            },
+        }
+    }
+else:
+    # Local SQLite fallback
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
