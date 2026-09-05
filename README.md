@@ -35,9 +35,31 @@ royal-square-crm/
 
 ---
 
-## Running the Application
+## Quickstart with Makefile
 
-### 1. Start the Python Backend
+To run the entire app locally with a single command:
+
+```bash
+make run              # Runs both Django (:8000) and React (:5173) locally
+```
+
+*(If it is your first time running, `make run` automatically creates virtual environments, installs dependencies, runs migrations, and seeds sample data.)*
+
+### Other Useful Make Commands:
+
+```bash
+make help             # View all available make commands
+make run-backend      # Run only the Django REST API on http://localhost:8000
+make run-frontend     # Run only the React Vite frontend on http://localhost:5173
+make migrate          # Run database migrations
+make seed             # Re-seed database with sample records
+make check            # Run Django security checks and React build verification
+make clean            # Remove build caches and pycache
+```
+
+---
+
+## Manual Execution (Without Make)
 ```bash
 cd royal-square-crm-python
 python3 -m venv venv
