@@ -2841,3 +2841,241 @@ body { background: var(--paper); color: var(--ink); font-family: var(--sans); }
   justify-content: center;
   width: 100%;
 }
+
+/* ==============================================================================
+   INTELLIGENT DOCUMENT SCANNER HUB (ONBOARDING INTAKE)
+   ============================================================================== */
+
+.doc-scanner-hub {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--royal);
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.scanner-hub-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.scanner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--royal);
+  margin: 0 0 2px 0;
+}
+
+.scanner-subtitle {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.badge-model-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--brass);
+  background: #fffdf5;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.scanner-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.scanner-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.scanner-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-header-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--royal);
+  margin: 0;
+}
+
+.card-header-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin: 1px 0 0 0;
+}
+
+.scanner-dropzone {
+  position: relative;
+  background: #f8fafc;
+  border: 1.5px dashed var(--line);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.scanner-dropzone:hover {
+  border-color: var(--royal);
+  background: var(--royal-tint);
+}
+
+.scanner-file-input {
+  display: none;
+}
+
+.scanner-dropzone-label {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  text-align: center;
+}
+
+.scanner-demo-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.btn-demo-chip {
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-demo-chip:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: var(--royal);
+  color: var(--royal);
+}
+
+/* Scanner Error Banner */
+.scanner-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: shake-error 0.3s ease-in-out;
+}
+
+@keyframes shake-error {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Extraction Results Review & Confirmation Card */
+.scanner-result-box {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 6px;
+}
+
+.badge-checksum-valid {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.badge-checksum-invalid {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.result-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+.result-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+}
+
+.result-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 1px 0 0 0;
+}
+
+.result-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+
+.btn-success {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
