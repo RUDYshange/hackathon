@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from urllib.parse import parse_qs, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -62,14 +63,35 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database Configuration (SQLite)
-DATABASE_NAME = os.getenv('DATABASE_NAME', 'royalsquare.sqlite3')
+# Database Configuration (Supabase PostgreSQL)
+DB_URL = os.getenv('DB_URL')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_SSLMODE = os.getenv('DB_SSLMODE', 'require')
+
+if not DB_URL or not DB_USER or not DB_PASSWORD:
+    raise ValueError("DB_URL, DB_USER, and DB_PASSWORD must be set for Supabase PostgreSQL")
+
+normalized_db_url = DB_URL.removeprefix('jdbc:')
+parsed_db_url = urlparse(normalized_db_url)
+db_query = parse_qs(parsed_db_url.query)
+
+if parsed_db_url.scheme not in ('postgresql', 'postgres'):
+    raise ValueError("DB_URL must be a PostgreSQL connection URL")
+
+if not parsed_db_url.hostname:
+    raise ValueError("DB_URL must include a database host")
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / DATABASE_NAME,
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': parsed_db_url.path.lstrip('/') or 'postgres',
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': parsed_db_url.hostname,
+        'PORT': parsed_db_url.port or 5432,
         'OPTIONS': {
-            'timeout': 20,
+            'sslmode': db_query.get('sslmode', [DB_SSLMODE])[0],
         }
     }
 }
