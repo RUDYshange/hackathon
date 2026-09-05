@@ -212,6 +212,7 @@ a { color: var(--primary); text-decoration: none; }
   border: 1px solid var(--primary-line);
   display: grid; place-items: center; font-weight: 700; font-size: 12px;
 }
+.adviser-avatar-image { object-fit: cover; }
 .adviser-card b { display: block; font-size: 12.5px; font-weight: 600; }
 .adviser-card span { display: block; font-size: 11px; color: var(--text-muted); }
 

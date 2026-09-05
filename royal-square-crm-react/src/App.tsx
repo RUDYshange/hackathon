@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import qinisoHeadshot from './professional_studio_headshot_of_qiniso_ntuli_an_african_male_executive_and.png';
 import { ClientListView } from './views/ClientListView';
 import { ClientDetailView } from './views/ClientDetailView';
 import { SecureClientFormView } from './views/SecureClientFormView';
@@ -121,7 +122,7 @@ export const App: React.FC = () => {
           <button className="btn btn-secondary" onClick={() => handleOpenClaims(true)}><ClipboardPlus size={15} /> Register claim</button>
           <button className="btn btn-primary" onClick={() => go('new-client')}><UserPlus size={15} /> New client</button>
           <div className="adviser-card" style={{ border: 'none', padding: '0 0 0 8px' }}>
-            <div className="adviser-avatar">QN</div>
+            <img className="adviser-avatar adviser-avatar-image" src={qinisoHeadshot} alt="Qiniso Ntuli" />
             <div>
               <b>Qiniso Ntuli</b>
               <span>Practice Director</span>
