@@ -62,7 +62,7 @@ public class LedgerEntry extends Auditable {
     public String getCreditor() { return creditor; }
     public BigDecimal getInterestRate() { return interestRate; }
 
-    void setClient(Client client) { this.client = client; }
+    public void setClient(Client client) { this.client = client; }
     public void setCreditor(String creditor) { this.creditor = creditor; }
     public void setInterestRate(BigDecimal rate) { this.interestRate = rate; }
 }

@@ -98,7 +98,7 @@ public class Goal extends Auditable {
     public LocalDate getTargetDate() { return targetDate; }
     public String getVehicle() { return vehicle; }
 
-    void setClient(Client client) { this.client = client; }
+    public void setClient(Client client) { this.client = client; }
     public void setCurrentAmount(BigDecimal v) { this.currentAmount = v; }
     public void setMonthlyContribution(BigDecimal v) { this.monthlyContribution = v; }
     public void setVehicle(String v) { this.vehicle = v; }

@@ -7,11 +7,26 @@ no framework on the client.
 ## Running it
 
 ```bash
-export DB_URL=jdbc:postgresql://your-host:5432/postgres
-export DB_USER=postgres
-export DB_PASSWORD=...
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
+
+Runtime configuration lives in `src/main/resources/application.properties`,
+with local values in `.env`. The application loads the nearest `.env` on
+startup, so IDE runs and `mvn spring-boot:run` use the same settings.
+These environment variables are supported:
+
+- `APP_NAME` defaults to `royal-square-crm`
+- `APP_SECURITY_USER`, `APP_SECURITY_PASSWORD`, `APP_SECURITY_ROLES` configure
+  the default sign-in account
+- `SERVER_PORT` defaults to `8080`
+- `APP_TIME_ZONE` defaults to `Africa/Johannesburg`
+- `APP_LOG_LEVEL` defaults to `DEBUG`
+- `DB_URL`, `DB_USER`, `DB_PASSWORD` configure PostgreSQL
+- `JPA_DDL_AUTO`, `JPA_OPEN_IN_VIEW`, `HIBERNATE_FORMAT_SQL` tune JPA/Hibernate
+- `FLYWAY_ENABLED`, `FLYWAY_LOCATIONS` tune Flyway
+- `SERVER_ERROR_INCLUDE_MESSAGE` defaults to `always`
+- `TEST_DB_URL`, `TEST_DB_DRIVER`, `TEST_JPA_DDL_AUTO`, `TEST_FLYWAY_ENABLED`
+  override the test profile
 
 The app serves the interface at `http://localhost:8080` and the API under
 `/api`. Flyway creates the schema on first boot. Tests run against in-memory H2
@@ -38,7 +53,7 @@ royal-square-crm/
     │   │   │   └── rules/       One class per rule
     │   │   └── claim/           Ten-stage pipeline, scene checklist
     │   └── resources/
-    │       ├── application.yml
+    │       ├── application.properties
     │       ├── db/migration/    Flyway SQL
     │       └── static/          The front end
     │           ├── index.html
