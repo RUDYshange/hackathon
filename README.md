@@ -136,13 +136,11 @@ npm run dev
 
 ## Landing Page & Sign In / Sign Up
 
-The app opens on a dark, premium **landing page** (`src/auth/LandingPage.tsx`)
-that follows the "Enterprise Gateway" pattern — a clear *path selection* between
-the two audiences, with trust signals throughout. Its visual direction (dark
-navy + brand gold, IBM Plex Sans, standard entrance motion, accessible focus
-states) was generated with the
-[ui-ux-pro-max design skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
-*(Design guidance was applied and adapted for this project.)*
+The app opens on a **Sovereign Wealth Modern landing page** (`src/auth/LandingPage.tsx`)
+designed to seamlessly match the institutional palette of the Client Dashboard and Advisor Console
+(`--canvas: #f4f7fd`, crisp white `#ffffff` cards, royal blue `#1d4ed8` accents, and the
+signature deep navy Net Worth showcase card). It follows the "Enterprise Gateway" pattern —
+a clear *path selection* between the two audiences, with FAIS, POPIA, and Astute trust signals throughout.
 
 - **Sign in** — email + password, with a Customer / Business selector.
 - **Sign up** — choose to register as a **Customer** or a **Business**, then set
@@ -322,8 +320,64 @@ extra configuration is required beyond `GROQ_API_KEY`.
 
 ---
 
-## Security & Compliance Highlights
-- **POPIA Protection**: Field-level masking on RSA ID numbers (`900101 **** ***`) with real-time Luhn checksum validation.
-- **Server-Driven UI (SDUI)**: Forms render dynamically based on JSON schemas emitted by the Python backend without hardcoded frontend form code.
-- **Anti-Bot & Anti-Tampering**: Invisible honeypot traps and in-flight submission idempotency locks.
-- **Financial Math**: Scale-2 decimal compliance for asset/liability grouping, surplus calculations, and debt-to-asset ratios.
+## Secure by Design Architecture
+
+Royal Square CRM is architected around strict **Secure by Design** principles tailored to the regulatory, privacy, and security demands of South African financial services (POPIA, FAIS, and FICA regulations).
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           BROWSER CLIENT                                  │
+│  • POPIA ID Masking (maskRsaId)       • XSS Sanitization (sanitizer.ts)  │
+│  • OCR Blur & Luhn Verification       • Anti-Tamper & Idempotency Locks  │
+└─────────────────────────────────────┬────────────────────────────────────┘
+                                      │ HTTPS + X-CSRF-Token + X-Idempotency-Key
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       DJANGO REST BACKEND                                │
+│  • Fail-Safe Secret Enforcement       • CORS & CSRF Origin Whitelisting  │
+│  • Hardened Security Headers (DENY)   • Rate Limiting & Throttling       │
+│  • Server-Side AI Key Isolation       • Parameterized ORM Queries        │
+└─────────────────────────────────────┬────────────────────────────────────┘
+                                      │ Enforced SSL (sslmode=require)
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                   NEON / SUPABASE POSTGRESQL                             │
+│  • UUIDv4 Non-Sequential Primary Keys (IDOR Prevention)                  │
+│  • Scale-2 Decimal Precision for Financial Records                       │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Privacy & Data Protection (POPIA by Design)
+- **PII Field-Level Masking (`src/security/popia.ts`)**: Implements cryptographic-grade data minimization via `maskRsaId()`, automatically masking South African ID numbers (`840312 **** ***`) before rendering in the UI or client logs.
+- **Strict South African ID Validation**: Full algorithmic verification via the **Luhn Checksum Algorithm**, birthdate calendar validation (handling century prefixes and leap years), gender code range verification, and citizenship flags.
+- **Document Quality & Tamper Checks (`src/services/documentScannerService.ts`)**: Client-side OCR and blur detection verify official RSA Smart IDs and bank confirmations before data is submitted, checking Luhn validity to reject forged or unreadable documents.
+
+### 2. Client-Side Security & Anti-Tampering
+- **XSS Sanitization Engine (`src/security/sanitizer.ts`)**: Neutralizes input vectors by stripping `<script>`, `<iframe>`, `<object>`, `<embed>` tags, inline DOM event handlers (`onclick`, `onerror`), and `javascript:` pseudo-protocols. Recursive object sanitization (`sanitizeObject`) cleans payloads before transmission.
+- **Anti-Tampering & Anti-Replay Tokens (`src/security/csrf.ts`, `src/services/api.ts`)**: Every outbound API call via `secureFetch` automatically attaches an anti-tampering `X-CSRF-Token` and a cryptographically generated `X-Idempotency-Key` (`crypto.randomUUID()`).
+- **In-Flight Double-Submit Locking**: Memory locks (`acquireSubmissionLock` / `releaseSubmissionLock`) guard against race conditions, accidental double-clicks, and replay attacks on financial and claim forms.
+
+### 3. Backend Hardening & API Security (Django REST)
+- **Fail-Safe Startup (`config/settings.py`)**: The application strictly refuses to start if `DJANGO_SECRET_KEY` is missing (`raise ValueError("CRITICAL SECURITY ERROR: DJANGO_SECRET_KEY must be set in .env")`).
+- **Enforced Database Transport Encryption**: SSL is strictly required (`ssl_require=True`, `sslmode=require`) for cloud PostgreSQL connections (Neon / Supabase), preventing eavesdropping on sensitive wealth records.
+- **SQL Injection & IDOR Elimination**: 100% parameterized queries via Django ORM. All primary keys use **UUIDv4** across all models (`models.py`) instead of sequential auto-incrementing integers, preventing Insecure Direct Object References (IDOR).
+- **Hardened HTTP Response Headers**:
+  - `X_FRAME_OPTIONS = 'DENY'` (clickjacking defense)
+  - `SECURE_CONTENT_TYPE_NOSNIFF = True` (MIME sniffing defense)
+  - `SECURE_BROWSER_XSS_FILTER = True`
+  - `SESSION_COOKIE_HTTPONLY = True` & `SESSION_COOKIE_SAMESITE = 'Lax'`
+- **CORS & CSRF Origin Whitelisting**: Strict origin enforcement (`CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`), preventing cross-origin execution from untrusted domains.
+- **API Throttling & DoS Protection**: Django REST Framework rate limits configured out of the box (`AnonRateThrottle` & `UserRateThrottle`) to mitigate brute-force and resource exhaustion attacks.
+
+### 4. AI & Voice Assistant Guardrails
+- **Server-Side Credential Isolation**: Groq API keys and voice transcription pipelines execute exclusively on the server; client devices never receive LLM credentials.
+- **Execution Guardrails**: The `ASSISTANT_ENABLE_WRITE_ACTIONS` configuration flag allows administrators to restrict the voice assistant to strictly read-only tools, preventing prompt injections from modifying CRM records without human approval.
+
+### 5. Production Hardening Roadmap
+
+| Security Layer | Current Hackathon Build | Production Hardening Roadmap |
+| :--- | :--- | :--- |
+| **Authentication** | Front-end session with demo credentials | Migrate to OAuth2 / OpenID Connect with MFA and server-verified JWTs |
+| **API Permissions** | `AllowAny` for prototype demonstration | Transition to `IsAuthenticated` with role-based access control (RBAC) |
+| **Transport** | HTTP/HTTPS dual mode for local dev | Enforce `SECURE_SSL_REDIRECT = True` and HSTS (`SECURE_HSTS_SECONDS`) |
+| **Secrets Management** | Local `.env` file | AWS Secrets Manager / HashiCorp Vault with automated key rotation |

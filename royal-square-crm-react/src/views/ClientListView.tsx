@@ -19,16 +19,18 @@ interface ClientSummary {
 }
 
 interface ClientListViewProps {
+  initialSearch?: string;
   onNewClientClick: () => void;
   onSelectClient?: (clientId: string) => void;
 }
 
 export const ClientListView: React.FC<ClientListViewProps> = ({
+  initialSearch = '',
   onNewClientClick,
   onSelectClient
 }) => {
   const [clients, setClients] = useState<ClientSummary[]>([]);
-  const [search, setSearch] = useState<string>('');
+  const [search, setSearch] = useState<string>(initialSearch);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,8 +48,9 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    setSearch(initialSearch);
+    fetchClients(initialSearch);
+  }, [initialSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
