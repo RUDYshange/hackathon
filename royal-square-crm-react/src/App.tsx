@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ClientDashboardView } from './views/ClientDashboardView';
 import { AccidentReportPageView } from './views/AccidentReportPageView';
 import { ReportLossPageView } from './views/ReportLossPageView';
+import { ClientClaimsHistoryView } from './views/ClientClaimsHistoryView';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { AdvisorConsole } from './advisor/AdvisorConsole';
 import { LandingPage } from './auth/LandingPage';
@@ -10,7 +11,7 @@ import { loadSession, saveSession, clearSession, type AccountRole, type AuthSess
 import { logout as apiLogout } from './auth/authService';
 
 type View = 'landing' | 'auth' | 'customer' | 'advisor';
-type CustomerPage = 'dashboard' | 'report-accident' | 'report-loss';
+type CustomerPage = 'dashboard' | 'report-accident' | 'report-loss' | 'claims-history';
 
 const workspaceFor = (role: AccountRole): View => (role === 'customer' ? 'customer' : 'advisor');
 
@@ -27,7 +28,7 @@ export function App() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authRole, setAuthRole] = useState<AccountRole | undefined>(undefined);
 
-  // Client-portal sub-navigation (dashboard ⇄ report flows).
+  // Client-portal sub-navigation (dashboard ⇄ report flows ⇄ claims history).
   const [customerPage, setCustomerPage] = useState<CustomerPage>('dashboard');
 
   const goSignIn = () => {
@@ -76,7 +77,6 @@ export function App() {
       <AdvisorConsole
         onSignOut={handleSignOut}
         advisorName={session?.name}
-        onSwitchToClient={() => setView('customer')}
       />
     );
   }
@@ -86,17 +86,32 @@ export function App() {
   return (
     <>
       {customerPage === 'report-accident' && (
-        <AccidentReportPageView onBackToDashboard={() => setCustomerPage('dashboard')} />
+        <AccidentReportPageView
+          onBackToDashboard={() => setCustomerPage('dashboard')}
+          onViewClaimsHistory={() => setCustomerPage('claims-history')}
+        />
       )}
 
       {customerPage === 'report-loss' && (
-        <ReportLossPageView onBackToDashboard={() => setCustomerPage('dashboard')} />
+        <ReportLossPageView
+          onBackToDashboard={() => setCustomerPage('dashboard')}
+          onViewClaimsHistory={() => setCustomerPage('claims-history')}
+        />
+      )}
+
+      {customerPage === 'claims-history' && (
+        <ClientClaimsHistoryView
+          onBackToDashboard={() => setCustomerPage('dashboard')}
+          onReportAccident={() => setCustomerPage('report-accident')}
+          onReportLoss={() => setCustomerPage('report-loss')}
+        />
       )}
 
       {customerPage === 'dashboard' && (
         <ClientDashboardView
           onReportAccident={() => setCustomerPage('report-accident')}
           onReportLoss={() => setCustomerPage('report-loss')}
+          onViewClaimsHistory={() => setCustomerPage('claims-history')}
           onSignOut={handleSignOut}
           onSwitchToAdvisor={() => setView('advisor')}
         />

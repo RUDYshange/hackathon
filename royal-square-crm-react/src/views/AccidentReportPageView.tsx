@@ -22,7 +22,8 @@ import {
   Users,
   ShieldAlert,
   UserCheck,
-  Plus
+  Plus,
+  History
 } from 'lucide-react';
 import { liveTranscribeService } from '../services/geminiLiveService';
 import { SmartTranscribeService, SmartTranscribeResult } from '../services/smartTranscribe';
@@ -62,9 +63,10 @@ interface OtherPartyDetails {
 
 interface AccidentReportPageViewProps {
   onBackToDashboard: () => void;
+  onViewClaimsHistory?: () => void;
 }
 
-export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ onBackToDashboard }) => {
+export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ onBackToDashboard, onViewClaimsHistory }) => {
   const client = CURRENT_CLIENT_MOCK;
 
   // Step state (6 clean steps):
@@ -431,14 +433,26 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
               <ArrowLeft size={16} />
               <span>Return to Portfolio Dashboard</span>
             </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold px-5 py-3 rounded-xl text-sm border border-slate-200 transition cursor-pointer"
-            >
-              <Printer size={16} />
-              <span>Print Claim Receipt</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {onViewClaimsHistory && (
+                <button
+                  type="button"
+                  onClick={onViewClaimsHistory}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-5 py-3 rounded-xl text-sm border border-indigo-200 transition cursor-pointer"
+                >
+                  <History size={16} />
+                  <span>View in Claims History</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold px-5 py-3 rounded-xl text-sm border border-slate-200 transition cursor-pointer"
+              >
+                <Printer size={16} />
+                <span>Print Claim Receipt</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -472,6 +486,17 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
           </div>
 
           <div className="flex items-center gap-2">
+            {onViewClaimsHistory && (
+              <button
+                type="button"
+                onClick={onViewClaimsHistory}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl hover:bg-slate-200 transition cursor-pointer"
+                title="View previous and active claims"
+              >
+                <History size={13} />
+                <span>Claims History</span>
+              </button>
+            )}
             <a
               href="tel:0800111222"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold rounded-xl hover:bg-rose-100 transition"

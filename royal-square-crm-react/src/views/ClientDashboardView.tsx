@@ -18,7 +18,8 @@ import {
   Languages,
   Loader2,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  History
 } from 'lucide-react';
 
 import { useI18n } from '../i18n/I18nProvider';
@@ -78,10 +79,11 @@ const money = (n?: number | null) => (n == null ? '—' : `R ${Math.round(n).toL
 export const ClientDashboardView: React.FC<{ 
   onReportAccident: () => void;
   onReportLoss?: () => void;
+  onViewClaimsHistory?: () => void;
   onSignOut?: () => void;
   /** Optional cross-navigation supplied by App; not surfaced here (role separation). */
   onSwitchToAdvisor?: () => void;
-}> = ({ onReportAccident, onReportLoss, onSignOut }) => {
+}> = ({ onReportAccident, onReportLoss, onViewClaimsHistory, onSignOut }) => {
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -350,6 +352,17 @@ export const ClientDashboardView: React.FC<{
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch md:items-center gap-3 shrink-0">
+            {onViewClaimsHistory && (
+              <button 
+                onClick={onViewClaimsHistory}
+                aria-label="View previous and active claims history"
+                className="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 font-semibold px-4 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
+              >
+                <History className="w-4 h-4 text-indigo-700" aria-hidden="true" />
+                <span>Claims History</span>
+                <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[10px] font-bold">2 Active</span>
+              </button>
+            )}
             <button 
               onClick={onReportAccident}
               aria-label="Report a motor accident"
@@ -568,6 +581,80 @@ export const ClientDashboardView: React.FC<{
           </div>
 
         </div>
+
+        {/* Active Claims & Incident Tracking Section */}
+        <section className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4" aria-label="Active claims and incidents">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-100 mb-1">
+                <ShieldCheck size={12} />
+                Santam Claims Integration
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-600" aria-hidden="true" />
+                Recent Claims &amp; Incident Tracking
+              </h2>
+              <p className="text-xs text-slate-500">
+                Track live status, panel beater authorizations, and docket updates under Policy #ST-39201984.
+              </p>
+            </div>
+            {onViewClaimsHistory && (
+              <button
+                type="button"
+                onClick={onViewClaimsHistory}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                <span>View Full Claims History &rarr;</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div 
+              onClick={onViewClaimsHistory}
+              className="p-4 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 transition cursor-pointer space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Car size={14} className="text-rose-600" />
+                  CLM-78210
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full">
+                  <CheckCircle2 size={11} /> Approved &bull; Panel Beater Authorized
+                </span>
+              </div>
+              <p className="text-xs text-slate-700">
+                Rear bumper impact by delivery vehicle at Rivonia Road traffic light. Authorized amount: R 18,500.
+              </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                <span>SAPS: CAS 312/08/2026 (Sandton SAPS)</span>
+                <span className="text-indigo-600 font-semibold flex items-center gap-0.5">View details <ChevronRight size={12} /></span>
+              </div>
+            </div>
+
+            <div 
+              onClick={onViewClaimsHistory}
+              className="p-4 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 transition cursor-pointer space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Car size={14} className="text-blue-600" />
+                  CLM-61044
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-full">
+                  <CheckCircle2 size={11} /> Settled &bull; Windscreen Replaced
+                </span>
+              </div>
+              <p className="text-xs text-slate-700">
+                Windscreen shatter from highway gravel on N1 North. Replaced via PG Glass with OEM acoustic glass.
+              </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                <span>Settled: R 6,400</span>
+                <span className="text-indigo-600 font-semibold flex items-center gap-0.5">View details <ChevronRight size={12} /></span>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Trust footer */}
         <footer className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500">

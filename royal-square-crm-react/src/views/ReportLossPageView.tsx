@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   ArrowLeft,
@@ -19,11 +19,17 @@ import {
   Home,
   Watch,
   Laptop,
-  Anchor
+  Anchor,
+  Mic,
+  MicOff,
+  Sparkles,
+  History
 } from 'lucide-react';
 import { CURRENT_CLIENT_MOCK } from '../client/mockClientData';
 import { secureFetch } from '../services/api';
 import { MockProviderApiService } from '../services/mockProviderApi';
+import { liveTranscribeService } from '../services/geminiLiveService';
+import { SmartTranscribeService, SmartTranscribeResult } from '../services/smartTranscribe';
 
 interface LostItem {
   id: string;
@@ -43,9 +49,10 @@ interface UploadedDocument {
 
 interface ReportLossPageViewProps {
   onBackToDashboard: () => void;
+  onViewClaimsHistory?: () => void;
 }
 
-export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackToDashboard }) => {
+export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackToDashboard, onViewClaimsHistory }) => {
   const client = CURRENT_CLIENT_MOCK;
 
   // Step state:
@@ -65,6 +72,96 @@ export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackTo
   );
   const [policeCaseNumber, setPoliceCaseNumber] = useState<string>('CAS 419/09/2026');
   const [policeStation, setPoliceStation] = useState<string>('Sandton SAPS');
+
+  // Speech to text & Smart Transcribe state
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [rawTranscript, setRawTranscript] = useState<string>('');
+  const [smartResult, setSmartResult] = useState<SmartTranscribeResult | null>(null);
+  const [volume, setVolume] = useState<number>(0);
+  const [isPolishing, setIsPolishing] = useState<boolean>(false);
+
+  // Clean up microphone on unmount
+  useEffect(() => {
+    return () => {
+      if (isListening) {
+        liveTranscribeService.stop();
+      }
+    };
+  }, [isListening]);
+
+  // Voice recording toggle
+  const toggleVoiceRecording = async () => {
+    if (isListening) {
+      liveTranscribeService.stop();
+      setIsListening(false);
+      setVolume(0);
+      return;
+    }
+
+    try {
+      setIsListening(true);
+      await liveTranscribeService.start({
+        onTranscript: (text) => {
+          setRawTranscript(text);
+          const cleaned = SmartTranscribeService.clean(text);
+          setSmartResult(cleaned);
+          setIncidentDescription(cleaned.cleanedText);
+        },
+        onError: (err) => {
+          console.warn('[Voice Transcribe Error]:', err);
+          setIsListening(false);
+        },
+        onVolumeChange: (vol: number) => {
+          setVolume(vol);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to access microphone', err);
+      setIsListening(false);
+    }
+  };
+
+  // Polish statement with AI / Gemini
+  const handlePolishWithGemini = async () => {
+    if (!incidentDescription.trim()) return;
+    setIsPolishing(true);
+    try {
+      const res = await secureFetch<{ polishedText: string }>('/claims/polish-transcript', {
+        method: 'POST',
+        body: JSON.stringify({
+          rawText: incidentDescription,
+          context: {
+            assetCategory,
+            lossType,
+            policeCase: policeCaseNumber,
+            insured: client.fullName
+          }
+        })
+      });
+
+      if (res.data?.polishedText) {
+        setIncidentDescription(res.data.polishedText);
+      } else {
+        const cleaned = SmartTranscribeService.clean(incidentDescription).cleanedText;
+        const formatted = `On ${incidentDate || new Date().toLocaleDateString('en-ZA')}, an insured loss incident (${lossType.replace(/_/g, ' ').toLowerCase()}) occurred affecting ${assetCategory.replace(/_/g, ' ').toLowerCase()}. ${cleaned}`;
+        setIncidentDescription(formatted);
+      }
+    } catch {
+      const cleaned = SmartTranscribeService.clean(incidentDescription).cleanedText;
+      setIncidentDescription(cleaned);
+    } finally {
+      setIsPolishing(false);
+    }
+  };
+
+  const applyQuickScenario = (text: string) => {
+    if (!incidentDescription.trim()) {
+      setIncidentDescription(text);
+    } else {
+      setIncidentDescription((prev) => `${prev.trim()} ${text}`);
+    }
+    setSmartResult(SmartTranscribeService.clean(incidentDescription));
+  };
 
   // Step 2: Items Lost or Damaged
   const [items, setItems] = useState<LostItem[]>([
@@ -287,14 +384,26 @@ export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackTo
               <ArrowLeft size={16} />
               <span>Return to Portfolio Dashboard</span>
             </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold px-5 py-3 rounded-xl text-sm border border-slate-200 transition cursor-pointer"
-            >
-              <Printer size={16} />
-              <span>Print Claim Receipt</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {onViewClaimsHistory && (
+                <button
+                  type="button"
+                  onClick={onViewClaimsHistory}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-5 py-3 rounded-xl text-sm border border-indigo-200 transition cursor-pointer"
+                >
+                  <History size={16} />
+                  <span>View in Claims History</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold px-5 py-3 rounded-xl text-sm border border-slate-200 transition cursor-pointer"
+              >
+                <Printer size={16} />
+                <span>Print Claim Receipt</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -328,6 +437,17 @@ export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackTo
           </div>
 
           <div className="flex items-center gap-2">
+            {onViewClaimsHistory && (
+              <button
+                type="button"
+                onClick={onViewClaimsHistory}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl hover:bg-slate-200 transition cursor-pointer"
+                title="View previous and active claims"
+              >
+                <History size={13} />
+                <span>Claims History</span>
+              </button>
+            )}
             <a
               href="tel:0800111222"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold rounded-xl hover:bg-amber-100 transition"
@@ -506,16 +626,98 @@ export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackTo
               </div>
             </div>
 
-            {/* Description */}
+            {/* Voice Control Bar & Narrative */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={toggleVoiceRecording}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
+                    isListening
+                      ? 'bg-rose-600 text-white animate-pulse shadow-md'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white'
+                  }`}
+                >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                  <span>{isListening ? 'Stop Recording' : 'Tap to Speak What Happened'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePolishWithGemini}
+                  disabled={isPolishing || !incidentDescription.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold border border-indigo-200 disabled:opacity-50 transition cursor-pointer"
+                  title="Polish voice transcript into institutional insurance-grade wording"
+                >
+                  {isPolishing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-indigo-600" />}
+                  <span>{isPolishing ? 'Polishing statement...' : 'Polish with AI'}</span>
+                </button>
+              </div>
+
+              {/* Speech volume wave */}
+              {isListening && (
+                <div className="flex items-center gap-3 pt-2 text-xs text-rose-600 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                  <span>Listening live: "{rawTranscript || 'Speak now...'}"</span>
+                  <div className="flex items-center gap-1 ml-auto" aria-hidden="true">
+                    {[0.5, 1.2, 0.8, 1.5, 0.9, 1.3, 0.6].map((multiplier, i) => (
+                      <span
+                        key={i}
+                        className="w-1 bg-rose-500 rounded-full transition-all duration-75"
+                        style={{ height: `${Math.max(4, Math.min(24, (volume || 0.4) * multiplier * 20))}px` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {smartResult && smartResult.removedCount > 0 && (
+                <div className="text-[11px] text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                  <Sparkles size={12} />
+                  <span>Filtered {smartResult.removedCount} filler words ('um' / 'uh') automatically.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Description Textarea */}
             <div className="space-y-1 text-xs">
-              <label className="font-semibold text-slate-700">Description of What Happened:</label>
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-slate-700">Incident Statement & Circumstances of Loss:</label>
+                <span className="text-[11px] text-slate-400">Include points of forced entry, broken locks, or discovery</span>
+              </div>
               <textarea
-                rows={3}
+                rows={4}
                 value={incidentDescription}
-                onChange={(e) => setIncidentDescription(e.target.value)}
+                onChange={(e) => {
+                  setIncidentDescription(e.target.value);
+                  setSmartResult(SmartTranscribeService.clean(e.target.value));
+                }}
                 placeholder="Describe how the loss occurred, points of forced entry, alarms triggered, or discovery..."
-                className="w-full p-3.5 rounded-xl border border-slate-300 text-slate-900"
+                className="w-full p-3.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 focus:border-slate-900 text-slate-900 text-sm placeholder:text-slate-400"
               />
+            </div>
+
+            {/* Quick Suggestion Chips */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-slate-500">Quick scenario templates (tap to insert):</span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Forced entry through rear sliding door lock.',
+                  'Master bedroom security gate breached & safe forced open.',
+                  'Laptop bag & electronics stolen from vehicle while parked.',
+                  'Burst geyser in ceiling caused extensive water damage to carpets & ceiling.',
+                  'Severe power surge following loadshedding damaged home audio & TVs.'
+                ].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => applyQuickScenario(chip)}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 transition cursor-pointer"
+                  >
+                    + {chip}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Step 1 Footer */}

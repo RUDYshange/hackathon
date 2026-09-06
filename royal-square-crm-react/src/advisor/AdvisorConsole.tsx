@@ -28,7 +28,6 @@ import {
   ChevronDown,
   Settings,
   LogOut,
-  ArrowLeft,
   Send
 } from 'lucide-react';
 
@@ -94,8 +93,6 @@ interface AdvisorConsoleProps {
   onSignOut?: () => void;
   /** Display name of the signed-in adviser (from the auth session). */
   advisorName?: string;
-  /** Switch to client portal */
-  onSwitchToClient?: () => void;
 }
 
 /**
@@ -103,7 +100,7 @@ interface AdvisorConsoleProps {
  * one of two workspaces reachable from the landing page: businesses/advisers land
  * here, while clients land on the client portal (ClientDashboardView).
  */
-export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName, onSwitchToClient }) => {
+export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -322,17 +319,6 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
 
           <span className="fsp-chip"><BadgeCheck size={13} /> FSP 29370 · FAIS COMPLIANT</span>
           <div className="topbar-spacer" />
-
-          {onSwitchToClient && (
-            <button
-              className="btn btn-secondary"
-              style={{ borderColor: 'rgba(99, 102, 241, 0.4)', color: '#818cf8' }}
-              onClick={onSwitchToClient}
-              title="Switch to Client-Facing Portal"
-            >
-              <ArrowLeft size={15} /> Client Portal
-            </button>
-          )}
 
           <button 
             className="btn btn-secondary"
