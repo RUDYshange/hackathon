@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Car, 
   TrendingUp, 
@@ -17,18 +17,21 @@ import {
   AlertCircle,
   Languages,
   Loader2,
-  LogOut
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
 
 import { useI18n } from '../i18n/I18nProvider';
+import { secureFetch } from '../services/api';
 
 interface Goal {
   id: string;
   title: string;
   targetAmount: number;
   currentAmount: number;
-  category: 'Retirement' | 'Education' | 'Wealth';
+  category: string;
   targetDate: string;
+  percent: number;
 }
 
 interface Reminder {
@@ -39,7 +42,38 @@ interface Reminder {
   category: string;
 }
 
+interface FinancialSummary {
+  netWorth: number;
+  totalAssets: number;
+  investments: number;
+  realEstate: number;
+  liabilities: number;
+  monthlyPremium: number;
+  investmentsPct: number;
+  realEstatePct: number;
+}
+
+interface PortalClient {
+  id: string;
+  reference: string;
+  fullName: string;
+  firstName: string;
+  greetingName: string;
+  advisor: string;
+  nextReviewDate: string;
+  riskProfile: string;
+}
+
+interface PortalOverview {
+  client: PortalClient;
+  financialSummary: FinancialSummary;
+  goals: Goal[];
+  reminders: Reminder[];
+}
+
 type TextSize = 'base' | 'large' | 'xl';
+
+const money = (n?: number | null) => (n == null ? '—' : `R ${Math.round(n).toLocaleString()}`);
 
 export const ClientDashboardView: React.FC<{ 
   onReportAccident: () => void;
@@ -53,38 +87,34 @@ export const ClientDashboardView: React.FC<{
   // Whole-app language switching (all 11 SA official languages).
   const { code: langCode, languages, setLanguage, translating } = useI18n();
 
-  const financialSummary = {
-    netWorth: 18450000,
-    monthlyPremium: 42850,
-    investments: 11200000,
-    realEstate: 8500000,
-    liabilities: 1250000,
-  };
+  // Live portfolio data, fetched from the database (see /api/portal/overview).
+  const [overview, setOverview] = useState<PortalOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const goals: Goal[] = [
-    {
-      id: '1',
-      title: 'Offshore Wealth Preservation',
-      targetAmount: 15000000,
-      currentAmount: 11200000,
-      category: 'Wealth',
-      targetDate: 'Dec 2028'
-    },
-    {
-      id: '2',
-      title: 'Family Trust Property Shield',
-      targetAmount: 10000000,
-      currentAmount: 8500000,
-      category: 'Retirement',
-      targetDate: 'Oct 2026'
-    }
-  ];
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const res = await secureFetch<PortalOverview>('/portal/overview');
+      if (!active) return;
+      if (res.data) {
+        setOverview(res.data);
+      } else {
+        setError(res.error || 'We could not load your portfolio right now.');
+      }
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [reloadKey]);
 
-  const reminders: Reminder[] = [
-    { id: '1', title: 'Driving licence expiry renewal', dueDate: 'In 18 days', status: 'critical', category: 'Personal' },
-    { id: '2', title: 'Insurance valuation certificate (2-yr review)', dueDate: 'Due next month', status: 'upcoming', category: 'Santam Asset' },
-    { id: '3', title: 'Annual Financial Review with Qiniso Ntuli', dueDate: '14 Jan 2027', status: 'upcoming', category: 'Mandate' }
-  ];
+  const client = overview?.client;
+  const fin = overview?.financialSummary;
+  const goals: Goal[] = overview?.goals ?? [];
+  const reminders: Reminder[] = overview?.reminders ?? [];
+  const ltv = fin && fin.totalAssets > 0 ? (fin.liabilities / fin.totalAssets) * 100 : null;
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -175,6 +205,26 @@ export const ClientDashboardView: React.FC<{
           </div>
         </div>
 
+        {/* Live data status */}
+        {error && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-2xl text-sm">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {error}
+            </span>
+            <button
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-rose-300 bg-white text-rose-700 hover:bg-rose-100 transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> Retry
+            </button>
+          </div>
+        )}
+        {loading && !overview && (
+          <div className="flex items-center gap-2 bg-white border border-slate-200/80 p-3.5 rounded-2xl text-sm text-slate-500 shadow-sm">
+            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" aria-hidden="true" /> Loading your portfolio from your records…
+          </div>
+        )}
+
         {/* Top Header: Warm greeting & Advisor Contact */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 md:p-7 rounded-2xl border border-slate-200/80 shadow-sm">
           <div>
@@ -183,11 +233,11 @@ export const ClientDashboardView: React.FC<{
               Royal Square Financial • Authorised FSP 29370 • POPIA Protected
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
-              Dumelang, Kagiso & Lerato
-              <span className="block text-sm font-normal text-slate-500 mt-1">Welcome back — here’s your family portfolio at a glance. No jargon, just clarity.</span>
+              Dumelang, <span data-no-translate>{client?.greetingName ?? 'there'}</span>
+              <span className="block text-sm font-normal text-slate-500 mt-1">Welcome back — here’s your portfolio at a glance. No jargon, just clarity.</span>
             </h1>
             <p className="text-sm text-slate-500 mt-2 max-w-2xl">
-              Managed with care by <span className="font-semibold text-slate-700">Qiniso Ntuli, Key Individual</span> • Next review 14 Jan 2027 • 
+              Managed with care by <span className="font-semibold text-slate-700" data-no-translate>{client?.advisor ?? 'Qiniso Ntuli'}, Key Individual</span> • Next review <span data-no-translate>{client?.nextReviewDate ?? '—'}</span> • 
               <a href="tel:0800111222" className="inline-flex items-center gap-1 ml-1 text-indigo-600 hover:text-indigo-700 underline-offset-2 hover:underline font-medium">
                 <Phone className="w-3 h-3" aria-hidden="true" /> 0800 111 222
               </a>
@@ -230,17 +280,17 @@ export const ClientDashboardView: React.FC<{
                 Total Family Net Worth
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 rounded-full text-[10px] font-bold tracking-wide">VERIFIED</span>
               </span>
-              <div className="text-3xl md:text-4xl font-extrabold mt-2 tracking-tight" aria-label={`Total net worth ${financialSummary.netWorth.toLocaleString()} Rand`}>
-                R {financialSummary.netWorth.toLocaleString()}
+              <div className="text-3xl md:text-4xl font-extrabold mt-2 tracking-tight" data-no-translate aria-label={fin ? `Total net worth ${Math.round(fin.netWorth).toLocaleString()} Rand` : 'Loading net worth'}>
+                {fin ? money(fin.netWorth) : '…'}
               </div>
               <p className="text-xs text-emerald-300 mt-2 flex items-center gap-1 font-medium">
-                <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /> +8.4% FAIS Tier YoY High-Wealth Benchmark
+                <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /> Assets less liabilities · updated from your records
               </p>
-              <p className="text-xs text-slate-400 mt-2">Includes primary residence, offshore & RA. Liabilities already deducted. Updated via Astute.</p>
+              <p className="text-xs text-slate-400 mt-2">Total assets {fin ? <span data-no-translate>{money(fin.totalAssets)}</span> : '…'}, with liabilities already deducted.</p>
             </div>
             <div className="pt-6 mt-6 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-300 flex-wrap gap-2">
-              <span>Combined Monthly Premium: <strong className="text-white">R {financialSummary.monthlyPremium.toLocaleString()}</strong></span>
-              <span>LTV Ratio: <strong className="text-emerald-300">6.77% (Low)</strong> — comfortably bonded</span>
+              <span>Combined Monthly Premium: <strong className="text-white" data-no-translate>{fin ? money(fin.monthlyPremium) : '…'}</strong></span>
+              <span>LTV Ratio: <strong className="text-emerald-300" data-no-translate>{ltv != null ? `${ltv.toFixed(2)}%` : '…'}</strong>{ltv != null && ltv < 35 ? ' — comfortably bonded' : ''}</span>
             </div>
           </div>
 
@@ -250,14 +300,14 @@ export const ClientDashboardView: React.FC<{
                 <span className="w-2 h-2 rounded-full bg-blue-600" aria-hidden="true"></span>
                 Investments & RA
               </span>
-              <div className="text-2xl font-bold text-slate-900 mt-2" aria-label={`Investments ${financialSummary.investments.toLocaleString()} Rand`}>
-                R {financialSummary.investments.toLocaleString()}
+              <div className="text-2xl font-bold text-slate-900 mt-2" data-no-translate aria-label={fin ? `Investments ${Math.round(fin.investments).toLocaleString()} Rand` : 'Loading investments'}>
+                {fin ? money(fin.investments) : '…'}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Allan Gray, Ninety One & Discretionary</p>
-              <p className="text-xs text-slate-400 mt-1">60.7% of net worth • Diversified, Reg 28 compliant</p>
+              <p className="text-xs text-slate-500 mt-1">Investments &amp; retirement annuities</p>
+              <p className="text-xs text-slate-400 mt-1">{fin ? `${fin.investmentsPct}% of total assets` : ''} • Diversified, Reg 28 compliant</p>
             </div>
-            <div className="w-full bg-slate-100 h-2.5 rounded-full mt-4 overflow-hidden" role="progressbar" aria-valuenow={60} aria-valuemin={0} aria-valuemax={100} aria-label="Investments share of portfolio">
-              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '60.7%' }}></div>
+            <div className="w-full bg-slate-100 h-2.5 rounded-full mt-4 overflow-hidden" role="progressbar" aria-valuenow={Math.round(fin?.investmentsPct ?? 0)} aria-valuemin={0} aria-valuemax={100} aria-label="Investments share of portfolio">
+              <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${fin?.investmentsPct ?? 0}%` }}></div>
             </div>
           </div>
 
@@ -267,14 +317,14 @@ export const ClientDashboardView: React.FC<{
                 <span className="w-2 h-2 rounded-full bg-emerald-600" aria-hidden="true"></span>
                 Fixed Assets & Property
               </span>
-              <div className="text-2xl font-bold text-slate-900 mt-2" aria-label={`Fixed assets ${financialSummary.realEstate.toLocaleString()} Rand`}>
-                R {financialSummary.realEstate.toLocaleString()}
+              <div className="text-2xl font-bold text-slate-900 mt-2" data-no-translate aria-label={fin ? `Fixed assets ${Math.round(fin.realEstate).toLocaleString()} Rand` : 'Loading fixed assets'}>
+                {fin ? money(fin.realEstate) : '…'}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Primary Residence & Pleasure Craft</p>
-              <p className="text-xs text-slate-400 mt-1">Insured via Santam • Last valuation Oct 2024</p>
+              <p className="text-xs text-slate-500 mt-1">Property &amp; fixed assets</p>
+              <p className="text-xs text-slate-400 mt-1">{fin ? `${fin.realEstatePct}% of total assets` : ''} • Insured &amp; regularly valued</p>
             </div>
-            <div className="w-full bg-slate-100 h-2.5 rounded-full mt-4 overflow-hidden" role="progressbar" aria-valuenow={45} aria-valuemin={0} aria-valuemax={100} aria-label="Property share of portfolio">
-              <div className="bg-emerald-600 h-2.5 rounded-full" style={{ width: '45%' }}></div>
+            <div className="w-full bg-slate-100 h-2.5 rounded-full mt-4 overflow-hidden" role="progressbar" aria-valuenow={Math.round(fin?.realEstatePct ?? 0)} aria-valuemin={0} aria-valuemax={100} aria-label="Property share of portfolio">
+              <div className="bg-emerald-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${fin?.realEstatePct ?? 0}%` }}></div>
             </div>
           </div>
         </div>
@@ -299,18 +349,18 @@ export const ClientDashboardView: React.FC<{
 
             <div className="space-y-5" role="list" aria-label="Financial goals">
               {goals.map((g) => {
-                const percent = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100));
+                const percent = g.percent ?? (g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0);
                 return (
                   <div key={g.id} role="listitem" className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
                     <div className="flex justify-between items-start mb-2 gap-4">
                       <div>
                         <h3 className="font-semibold text-sm text-slate-900">{g.title}</h3>
-                        <span className="text-xs text-slate-500">Target: {g.targetDate} • {g.category}</span>
+                        <span className="text-xs text-slate-500">Target: <span data-no-translate>{g.targetDate}</span> • {g.category}</span>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-sm font-bold text-slate-900" aria-label={`${percent} percent complete`}>{percent}%</span>
-                        <p className="text-xs text-slate-500">
-                          R {g.currentAmount.toLocaleString()} / R {g.targetAmount.toLocaleString()}
+                        <span className="text-sm font-bold text-slate-900" data-no-translate aria-label={`${percent} percent complete`}>{percent}%</span>
+                        <p className="text-xs text-slate-500" data-no-translate>
+                          {money(g.currentAmount)} / {money(g.targetAmount)}
                         </p>
                       </div>
                     </div>
@@ -326,6 +376,9 @@ export const ClientDashboardView: React.FC<{
                   </div>
                 );
               })}
+              {!loading && goals.length === 0 && (
+                <p className="text-sm text-slate-500 py-6 text-center">No goals have been loaded for your portfolio yet — your advisor will set these up.</p>
+              )}
             </div>
 
             {/* Quick Self-Service Tasks from PDF Section II */}
@@ -389,6 +442,9 @@ export const ClientDashboardView: React.FC<{
                     </span>
                   </div>
                 ))}
+                {!loading && reminders.length === 0 && (
+                  <p className="text-xs text-slate-500 py-4 text-center">You&apos;re all caught up — no actions due right now.</p>
+                )}
               </div>
 
               <button onClick={() => showToast('Reminders synced to your calendar.')} className="mt-4 w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5 min-h-[40px] focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2">

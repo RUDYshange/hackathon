@@ -163,6 +163,10 @@ GROQ_AGENT_MODEL = os.getenv('GROQ_AGENT_MODEL', 'openai/gpt-oss-120b')
 # When False, the assistant is restricted to read-only tools.
 ASSISTANT_ENABLE_WRITE_ACTIONS = os.getenv('ASSISTANT_ENABLE_WRITE_ACTIONS', 'True').lower() in ('true', '1')
 
+# Client portal: which seeded client the customer dashboard shows when the
+# account isn't linked to a specific client record yet.
+PORTAL_DEFAULT_CLIENT_REFERENCE = os.getenv('PORTAL_DEFAULT_CLIENT_REFERENCE', 'CLI-1026')
+
 # CORS & CSRF Configuration
 CORS_ALLOWED_ORIGINS = [
     orig.strip() for orig in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if orig.strip()
