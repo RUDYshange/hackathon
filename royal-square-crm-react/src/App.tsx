@@ -7,7 +7,6 @@ import { AdvisorConsole } from './advisor/AdvisorConsole';
 import { LandingPage } from './auth/LandingPage';
 import { AuthView } from './auth/AuthView';
 import { loadSession, saveSession, clearSession, type AccountRole } from './auth/session';
-import { DEMO_ACCOUNTS } from './auth/accounts';
 
 type View = 'landing' | 'auth' | 'customer' | 'advisor';
 type CustomerPage = 'dashboard' | 'report-accident' | 'report-loss';
@@ -42,21 +41,6 @@ export function App() {
     setView('auth');
   };
 
-  const handleLaunchWorkspace = (role: AccountRole) => {
-    const defaultAccount = DEMO_ACCOUNTS.find((a) => a.role === role);
-    if (defaultAccount) {
-      setSession(saveSession({ role: defaultAccount.role, name: defaultAccount.name, email: defaultAccount.email }));
-    } else {
-      setSession(saveSession({
-        role,
-        name: role === 'customer' ? 'Sipho Dlamini' : 'Qiniso Ntuli',
-        email: role === 'customer' ? 'client@royalsquare.co.za' : 'advisor@royalsquare.co.za'
-      }));
-    }
-    setCustomerPage('dashboard');
-    setView(workspaceFor(role));
-  };
-
   const handleAuthenticated = (role: AccountRole, name: string, email: string) => {
     setSession(saveSession({ role, name, email }));
     setCustomerPage('dashboard');
@@ -71,13 +55,7 @@ export function App() {
   };
 
   if (view === 'landing') {
-    return (
-      <LandingPage
-        onSignIn={goSignIn}
-        onGetStarted={goSignUp}
-        onLaunchWorkspace={handleLaunchWorkspace}
-      />
-    );
+    return <LandingPage onSignIn={goSignIn} onGetStarted={goSignUp} />;
   }
 
   if (view === 'auth') {
