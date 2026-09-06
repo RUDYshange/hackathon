@@ -14,8 +14,12 @@ import {
   ChevronRight,
   CheckCircle2,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Languages,
+  Loader2
 } from 'lucide-react';
+
+import { useI18n } from '../i18n/I18nProvider';
 
 interface Goal {
   id: string;
@@ -43,6 +47,9 @@ export const ClientDashboardView: React.FC<{
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Whole-app language switching (all 11 SA official languages).
+  const { code: langCode, languages, setLanguage, translating } = useI18n();
 
   const financialSummary = {
     netWorth: 18450000,
@@ -124,6 +131,31 @@ export const ClientDashboardView: React.FC<{
               <Eye className="w-3.5 h-3.5" aria-hidden="true" />
               {highContrast ? 'High contrast on' : 'High contrast'}
             </button>
+
+            {/* Language switcher — translates the whole portal into any of the
+                11 official SA languages. Marked data-no-translate so the native
+                language names in the dropdown are never machine-translated. */}
+            <div
+              className="inline-flex items-center gap-1.5 bg-slate-100 pl-2.5 pr-1 py-1 rounded-full border border-transparent hover:border-slate-300 transition"
+              data-no-translate
+            >
+              {translating
+                ? <Loader2 className="w-3.5 h-3.5 text-indigo-600 animate-spin" aria-hidden="true" />
+                : <Languages className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />}
+              <label htmlFor="app-language" className="sr-only">Choose language</label>
+              <select
+                id="app-language"
+                value={langCode}
+                onChange={(e) => setLanguage(e.target.value)}
+                title="Choose your language"
+                className="bg-transparent text-xs font-semibold text-slate-700 py-0.5 pr-1 rounded-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                {languages.map((l) => (
+                  <option key={l.code} value={l.code}>{l.native}</option>
+                ))}
+              </select>
+            </div>
+
             <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
               Live • FSP 29370
