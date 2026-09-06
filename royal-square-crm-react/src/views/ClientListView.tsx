@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { secureFetch } from '../services/api';
-import { Search, UserPlus, ShieldAlert, Calendar, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { Search, UserPlus, ShieldAlert, ArrowUpRight, ChevronRight, Mail, Tag } from 'lucide-react';
 
 interface ClientSummary {
   id: string;
@@ -19,16 +19,19 @@ interface ClientSummary {
 }
 
 interface ClientListViewProps {
+  initialSearch?: string;
   onNewClientClick: () => void;
   onSelectClient?: (clientId: string) => void;
 }
 
 export const ClientListView: React.FC<ClientListViewProps> = ({
+  initialSearch = '',
   onNewClientClick,
   onSelectClient
 }) => {
   const [clients, setClients] = useState<ClientSummary[]>([]);
-  const [search, setSearch] = useState<string>('');
+  const [search, setSearch] = useState<string>(initialSearch);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,8 +49,14 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    setSearch(initialSearch);
+    setSelectedIds([]);
+    fetchClients(initialSearch);
+  }, [initialSearch]);
+
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => clients.some((client) => client.id === id)));
+  }, [clients]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +71,17 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
       maximumFractionDigits: 0
     }).format(num || 0);
   };
+
+  const allSelected = clients.length > 0 && selectedIds.length === clients.length;
+  const toggleSelected = (clientId: string) => {
+    setSelectedIds((current) => current.includes(clientId)
+      ? current.filter((id) => id !== clientId)
+      : [...current, clientId]);
+  };
+  const toggleAll = () => setSelectedIds(allSelected ? [] : clients.map((client) => client.id));
+  const formatReviewDate = (value?: string) => value
+    ? new Date(value).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Not scheduled';
 
   return (
     <div className="view-container">
@@ -110,76 +130,48 @@ export const ClientListView: React.FC<ClientListViewProps> = ({
           <p>No clients found matching your criteria.</p>
         </div>
       ) : (
-        <div className="client-grid">
-          {clients.map((client) => (
-            <div
-              key={client.id}
-              className="client-card"
-              role={onSelectClient ? 'button' : undefined}
-              tabIndex={onSelectClient ? 0 : undefined}
-              style={onSelectClient ? { cursor: 'pointer' } : undefined}
-              onClick={() => onSelectClient && onSelectClient(client.id)}
-            >
-              <div className="client-card-header">
-                <div className="avatar-initials">{client.initials}</div>
-                <div className="client-header-meta">
-                  <div className="client-name-row">
-                    <h3 className="client-name">{client.fullName}</h3>
-                    <span className="client-ref">{client.reference}</span>
-                  </div>
-                  <p className="client-role">
-                    {client.occupation ? `${client.occupation} • ${client.employer || ''}` : 'Private Wealth Client'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="client-card-body">
-                <div className="metric-box">
-                  <span className="metric-label">Net Worth</span>
-                  <span className="metric-value text-gold">
-                    <TrendingUp size={15} /> {formatZar(client.netWorth)}
-                  </span>
-                </div>
-
-                <div className="pill-row">
-                  <span className={`pill-badge risk-${client.riskProfile.toLowerCase()}`}>
-                    {client.riskProfile} MANDATE
-                  </span>
-
-                  {client.complianceGapCount > 0 ? (
-                    <span className="pill-badge compliance-warning">
-                      <ShieldAlert size={12} /> {client.complianceGapCount} Compliance Gap{client.complianceGapCount > 1 ? 's' : ''}
-                    </span>
-                  ) : (
-                    <span className="pill-badge compliance-ok">
-                      FAIS Compliant
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="client-card-footer">
-                <div className="review-date-info">
-                  <Calendar size={13} />
-                  <span>
-                    {client.daysUntilReview !== undefined && client.daysUntilReview !== null
-                      ? client.daysUntilReview < 0
-                        ? `Review overdue by ${Math.abs(client.daysUntilReview)}d`
-                        : `Annual review in ${client.daysUntilReview}d`
-                      : 'Review not scheduled'}
-                  </span>
-                </div>
-                <button
-                  className="btn-icon-subtle"
-                  title="View full ledger & policy file"
-                  onClick={(e) => { e.stopPropagation(); onSelectClient && onSelectClient(client.id); }}
-                >
-                  <ArrowUpRight size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <section className="client-register-panel">
+          <div className="bulk-action-bar">
+            <span><b>{selectedIds.length}</b> selected</span>
+            <button className="btn btn-secondary btn-sm" disabled={!selectedIds.length} title="Set status">
+              <Tag size={14} /> Set Status <ChevronRight size={13} />
+            </button>
+            <button className="btn btn-primary btn-sm" disabled={!selectedIds.length} title="Send follow-up">
+              <Mail size={14} /> Send Follow-up
+            </button>
+          </div>
+          <div className="client-table-wrap">
+            <table className="client-table">
+              <thead>
+                <tr>
+                  <th className="client-check-cell"><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all clients" /></th>
+                  <th>Client</th><th>Contact</th><th>Portfolio</th><th>Compliance</th><th>Renewal</th><th>Status</th><th aria-label="Open" />
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map((client) => {
+                  const selected = selectedIds.includes(client.id);
+                  const overdue = (client.daysUntilReview ?? 999) <= 30;
+                  const status = client.complianceGapCount === 0 ? 'Active' : 'Pending';
+                  return (
+                    <tr key={client.id} className={selected ? 'selected-row' : ''}>
+                      <td className="client-check-cell">
+                        <input type="checkbox" checked={selected} onChange={() => toggleSelected(client.id)} aria-label={`Select ${client.fullName}`} />
+                      </td>
+                      <td><button className="client-table-name" onClick={() => onSelectClient?.(client.id)}>{client.fullName}</button><span className="client-table-id">{client.reference}</span></td>
+                      <td><span>{client.mobileNumber || 'No phone captured'}</span><small>{client.occupation || client.employer || 'Private wealth client'}</small></td>
+                      <td><b>{formatZar(client.netWorth)}</b><small>{client.riskProfile} mandate</small></td>
+                      <td><span>{Math.max(0, 3 - client.complianceGapCount)}/3</span><small>{client.complianceGapCount ? `${client.complianceGapCount} gap${client.complianceGapCount > 1 ? 's' : ''}` : 'Complete'}</small></td>
+                      <td className={overdue ? 'renewal-urgent' : ''}>{formatReviewDate(client.nextReviewDate)}<small>{client.daysUntilReview !== undefined && client.daysUntilReview !== null ? client.daysUntilReview < 0 ? `${Math.abs(client.daysUntilReview)}d overdue` : `in ${client.daysUntilReview}d` : 'No date'}</small></td>
+                      <td><span className={`status-chip ${status === 'Active' ? 'ok' : 'pending'}`}><span className="dot" /> {status}</span></td>
+                      <td><button className="client-open-button" onClick={() => onSelectClient?.(client.id)} aria-label={`Open ${client.fullName}`}><ArrowUpRight size={16} /></button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
