@@ -2,6 +2,11 @@
 
 A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Neon PostgreSQL** database (primary backend), an alternative **FastAPI + SQLite** implementation, and **React 18 + TypeScript** (frontend).
 
+The React app opens on an **accessible client portal** — a soft, high-contrast wealth dashboard designed for clients aged 60+ — with guided "Report Motor Accident" and "Report Loss / Theft" journeys. Two flagship inclusivity features are available on **every page**:
+
+- **Multilingual voice agent** — speak to the CRM in any South African language (Groq Whisper + a tool-calling agent).
+- **Whole-app translation** — a one-tap language switcher translates the entire interface into any of the **11 official SA languages**.
+
 ---
 
 ## Architecture
@@ -25,15 +30,22 @@ royal-square-crm/
 │   └── app/                      # routers / services / rules / repositories / models / schemas
 │
 └── royal-square-crm-react/       # React 18 + TypeScript + Vite (Hardened Frontend)
+    ├── index.html                # Loads Tailwind (CDN) for the client portal + Google fonts
     ├── src/
+    │   ├── App.tsx               # Client portal shell: dashboard + report flows + voice agent
+    │   ├── main.tsx              # Wraps <App/> in <I18nProvider/> (whole-app translation)
+    │   ├── i18n/                 # I18nProvider (auto-translates the UI) + 11 SA languages
+    │   ├── client/               # Client-portal module (context, components, mock data, types)
     │   ├── components/
     │   │   ├── VoiceAssistant.tsx # Floating multilingual voice chatbot (all pages)
     │   │   ├── forms/            # DynamicForm, MaskedIdInput, CurrencyInput, Honeypot
-    │   │   └── ui/               # Design system primitives
+    │   │   └── maps/             # Accident location map
     │   ├── security/             # POPIA RSA ID Luhn check, XSS sanitizer, CSRF locks
     │   ├── schemas/              # Zod validation & Server-Driven UI types
     │   ├── services/             # API client with CSRF and idempotency keys
-    │   └── views/                # Portfolio, Secure Form, SDUI Engine, Claims, Reminders
+    │   └── views/                # ClientDashboardView, AccidentReportPageView,
+    │                             #   ReportLossPageView, SettingsView (language picker),
+    │                             #   plus the institutional CRM views (Clients, Claims, …)
     └── package.json
 ```
 
@@ -87,23 +99,56 @@ client access is added later.
 ---
 
 ## Manual Execution (Without Make)
+
+### 1. Start the Django REST API (primary backend)
 ```bash
-cd royal-square-crm-python
+cd royal-square-crm-django
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
-./venv/bin/python -m app.seed     # Seeds SQLite database (royalsquare.db)
-./venv/bin/uvicorn app.main:app --port 8000
+cp .env.example .env              # then set GROQ_API_KEY (and DATABASE_URL for Postgres)
+./venv/bin/python manage.py migrate
+./venv/bin/python manage.py seed_data   # sample South African wealth-management records
+./venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 - API Health: `http://localhost:8000/api/health`
-- Interactive Swagger Docs: `http://localhost:8000/docs`
+
+> Alternative FastAPI + SQLite backend: `cd royal-square-crm-python`, install
+> `requirements.txt`, run `python -m app.seed`, then
+> `uvicorn app.main:app --port 8000` (Swagger at `/docs`).
 
 ### 2. Start the React Frontend
 ```bash
 cd royal-square-crm-react
 npm install
+cp .env.example .env              # sets VITE_API_BASE_URL etc.
 npm run dev
 ```
-- Web Application: `http://localhost:5173` (proxies `/api` directly to port 8000)
+- Web Application: `http://localhost:5173` (talks to the API via `VITE_API_BASE_URL`)
+
+---
+
+## Accessible Client Portal (default UI)
+
+The app opens on a client-facing wealth dashboard (`ClientDashboardView`) built
+for clarity and for clients aged 60+:
+
+- **Comfort bar** — one-tap text scaling (A / A+ / A++), a high-contrast toggle,
+  and the **language switcher** (all 11 SA languages), rendered with Tailwind.
+- **Wealth overview** — net worth, investments and fixed assets, advisor-loaded
+  goals with progress, and automated reminders (renewals, reviews, certificates).
+- **Guided claim journeys** — "Report Motor Accident" (`AccidentReportPageView`,
+  with map + witness/other-party capture) and "Report Loss / Theft"
+  (`ReportLossPageView`), reachable from the header.
+- **Accessibility** — skip link, ARIA roles/labels, focus-visible rings, live
+  region for toasts.
+
+Styling: the portal uses **Tailwind via CDN** (configured in `index.html`); the
+voice assistant and design-system components use the CSS tokens in
+`src/index.css`. Both stylesheets coexist.
+
+The institutional staff CRM views (Clients, Claims, Compliance, Providers,
+Reminders, Onboarding, SDUI form engine) remain in `src/views/` and can be
+re-mounted from `App.tsx` when a staff console is needed.
 
 ---
 
@@ -160,6 +205,38 @@ file (multipart) or a `text` message (JSON), plus optional conversation
 
 > Microphone capture requires a secure context. It works on `localhost` during
 > development; a deployed demo must be served over HTTPS for the mic to work.
+
+---
+
+## Whole-App Multilingual Translation
+
+Beyond the voice agent, the **entire interface** can be switched into any of
+South Africa's 11 official languages from the language picker in the dashboard
+comfort bar. Pick a language and every visible label, heading, button and
+placeholder is translated in place.
+
+### How it works
+
+```
+Language selected (e.g. isiZulu)
+   → I18nProvider walks the rendered DOM (text nodes + placeholder/title attrs)
+   → batches untranslated strings → POST /api/i18n/translate                [Django]
+        → Groq translates them (proper nouns, codes & amounts left as-is)
+   → results cached in localStorage per language, applied in place
+   → a MutationObserver + periodic re-scan keep late-rendered content translated
+```
+
+- **Cached** — each unique string is translated once per language, so switching
+  back is instant and repeat visits are cheap.
+- **Safe by design** — client names, reference codes (e.g. `FSP 29370`),
+  numbers and currency are never translated; elements marked
+  `data-no-translate` (and `SCRIPT`/`STYLE`/`CODE`/`SVG`) are skipped.
+- **English is the source** — selecting English restores the original copy.
+
+Endpoint: `POST /api/i18n/translate` with `{ "target": "isiZulu", "texts": [...] }`
+returns `{ "target": "isiZulu", "translations": { "<original>": "<translated>" } }`.
+It reuses the same Groq client and `GROQ_AGENT_MODEL` as the voice agent, so no
+extra configuration is required beyond `GROQ_API_KEY`.
 
 ---
 
