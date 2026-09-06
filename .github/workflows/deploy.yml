@@ -1,0 +1,44 @@
+name: Deploy to Render
+
+# Runs only after the CI workflow completes successfully on `main`, then
+# triggers a deploy of each Render service via its deploy hook. This makes CI a
+# hard gate: broken builds never reach production.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+# Avoid overlapping deploys if pushes land in quick succession.
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Trigger Render deploys
+    runs-on: ubuntu-latest
+    # Only deploy when the upstream CI run passed.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Deploy API (Django)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_API secret is not set. Add it in repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Triggering Render deploy for royal-square-crm-api..."
+          curl -fsSL -X POST "$HOOK"
+
+      - name: Deploy Web (React)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_WEB secret is not set. Add it in repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Triggering Render deploy for royal-square-crm-web..."
+          curl -fsSL -X POST "$HOOK"

@@ -1,0 +1,83 @@
+# ==============================================================================
+# Render Blueprint — Royal Square CRM
+# Defines the full stack as Infrastructure-as-Code:
+#   * royal-square-crm-db   — managed PostgreSQL
+#   * royal-square-crm-api  — Django REST API (gunicorn + WhiteNoise)
+#   * royal-square-crm-web  — React/Vite static site
+#
+# Deploys are gated by GitHub Actions CI (autoDeployTrigger: off). The
+# .github/workflows/deploy.yml workflow triggers a deploy via each service's
+# deploy hook only after CI passes on `main`.
+#
+# NOTE ON URLs: the values below assume Render grants the exact service names,
+# giving https://royal-square-crm-api.onrender.com and
+# https://royal-square-crm-web.onrender.com. If a name is already taken, Render
+# appends a random suffix — update CORS_ALLOWED_ORIGINS, CSRF_TRUSTED_ORIGINS
+# and VITE_API_BASE_URL to match the real URLs after the first sync.
+# ==============================================================================
+
+databases:
+  - name: royal-square-crm-db
+    databaseName: royalsquare
+    user: royalsquare
+    plan: free
+    region: oregon
+
+services:
+  # ----------------------------------------------------------------------- #
+  # Django REST API
+  # ----------------------------------------------------------------------- #
+  - type: web
+    name: royal-square-crm-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: royal-square-crm-django
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      # Django generates a strong secret on first sync.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      # Connection string is wired automatically from the managed database.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: royal-square-crm-db
+          property: connectionString
+      # Secret — you are prompted for this during the initial Blueprint sync.
+      # Get a free key at https://console.groq.com
+      - key: GROQ_API_KEY
+        sync: false
+      # Frontend origin(s) allowed to call the API (CORS + CSRF).
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://royal-square-crm-web.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://royal-square-crm-web.onrender.com
+      - key: ASSISTANT_ENABLE_WRITE_ACTIONS
+        value: "True"
+
+  # ----------------------------------------------------------------------- #
+  # React (Vite) static site
+  # ----------------------------------------------------------------------- #
+  - type: web
+    name: royal-square-crm-web
+    runtime: static
+    rootDir: royal-square-crm-react
+    buildCommand: "npm ci && npm run build"
+    staticPublishPath: ./dist
+    autoDeployTrigger: off
+    envVars:
+      # Baked into the bundle at build time — must point at the API's URL.
+      - key: VITE_API_BASE_URL
+        value: https://royal-square-crm-api.onrender.com/api
+    routes:
+      # SPA fallback: serve index.html for client-side routes.
+      - type: rewrite
+        source: /*
+        destination: /index.html

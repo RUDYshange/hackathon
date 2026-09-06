@@ -1,0 +1,68 @@
+name: CI
+
+# Build and validate both the Django API and the React frontend on every push
+# and pull request. This gates deployment: the deploy workflow only runs after
+# this workflow succeeds on `main`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (Django)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: royal-square-crm-django
+    env:
+      # Dummy value so settings.py loads during CI. Never used in production.
+      DJANGO_SECRET_KEY: ci-only-secret-not-used-in-production-0000000000
+      DJANGO_DEBUG: "False"
+      DJANGO_SETTINGS_MODULE: config.settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: royal-square-crm-django/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Django system checks
+        run: python manage.py check
+
+      - name: Verify migrations are complete
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Collect static files
+        run: python manage.py collectstatic --no-input
+
+  frontend:
+    name: Frontend (React + Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: royal-square-crm-react
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: royal-square-crm-react/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
