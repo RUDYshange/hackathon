@@ -109,6 +109,9 @@ class ClientService:
             "reference": client.reference,
             "title": client.title,
             "fullName": client.full_name,
+            "firstName": client.first_name,
+            "secondName": client.second_name,
+            "surname": client.surname,
             "maskedIdNumber": cls.mask_id_number(client.id_number),
             "dateOfBirth": client.date_of_birth,
             "age": cls.calculate_age(client.date_of_birth),
@@ -175,6 +178,26 @@ class ClientService:
             return None
         return ClientService.to_detail(client)
 
+    # camelCase API field -> Django model field.
+    FIELD_MAP = {
+        "title": "title",
+        "firstName": "first_name",
+        "secondName": "second_name",
+        "surname": "surname",
+        "idNumber": "id_number",
+        "dateOfBirth": "date_of_birth",
+        "licenceExpiry": "licence_expiry",
+        "nextReviewDate": "next_review_date",
+        "occupation": "occupation",
+        "employer": "employer",
+        "annualIncome": "annual_income",
+        "mobileNumber": "mobile_number",
+        "emailAddress": "email_address",
+        "primaryAddress": "primary_address",
+        "riskProfile": "risk_profile",
+        "riskScore": "risk_score",
+    }
+
     @staticmethod
     def create_client(data: dict) -> Dict[str, Any]:
         mapped = {
@@ -195,3 +218,20 @@ class ClientService:
         }
         client = ClientRepository.create({k: v for k, v in mapped.items() if v is not None})
         return ClientService.to_detail(client)
+
+    @classmethod
+    def update_client(cls, client_id: str, data: dict) -> Optional[Dict[str, Any]]:
+        client = ClientRepository.get_by_id(client_id)
+        if not client:
+            return None
+        mapped = {cls.FIELD_MAP[k]: v for k, v in data.items() if k in cls.FIELD_MAP}
+        ClientRepository.update(client, mapped)
+        return ClientService.to_detail(client)
+
+    @staticmethod
+    def delete_client(client_id: str) -> bool:
+        client = ClientRepository.get_by_id(client_id)
+        if not client:
+            return False
+        ClientRepository.delete(client)
+        return True

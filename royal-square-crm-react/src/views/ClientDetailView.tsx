@@ -6,19 +6,23 @@ import {
   CalendarClock,
   CheckCircle2,
   FileSignature,
-  FileText,
   HeartPulse,
   Home,
   Landmark,
   PiggyBank,
-  RefreshCw,
   Send,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
   Target,
   TrendingUp,
-  Wallet
+  Wallet,
+  Pencil,
+  Trash2,
+  X,
+  Save,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
 
@@ -26,6 +30,23 @@ interface ClientDetailViewProps {
   clientId: string;
   onBack: () => void;
   onOpenClaims: () => void;
+  /** Called after the client is deleted (defaults to onBack). */
+  onDeleted?: () => void;
+}
+
+interface EditForm {
+  title: string;
+  firstName: string;
+  secondName: string;
+  surname: string;
+  occupation: string;
+  employer: string;
+  mobileNumber: string;
+  emailAddress: string;
+  primaryAddress: string;
+  riskProfile: string;
+  riskScore: string;
+  nextReviewDate: string;
 }
 
 interface LedgerLine { id: string; label: string; amount: number | string; creditor?: string | null; interestRate?: number | null; }
@@ -46,7 +67,8 @@ interface PolicyRow {
 interface DocRow { id: string; type: string; signedOn: string; storageKey?: string | null; }
 
 interface ClientDetail {
-  id: string; reference: string; title: string; fullName: string; maskedIdNumber?: string;
+  id: string; reference: string; title: string; fullName: string;
+  firstName?: string; secondName?: string; surname?: string; maskedIdNumber?: string;
   dateOfBirth?: string; age?: number; occupation?: string; employer?: string;
   annualIncome?: number | string; mobileNumber?: string; emailAddress?: string; primaryAddress?: string;
   licenceExpiry?: string; clientSince?: string; nextReviewDate?: string;
@@ -72,11 +94,19 @@ const zar = (value: number | string | undefined | null, compact = false) =>
 const dateZa = (value?: string | null) =>
   value ? new Date(value).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, onBack, onOpenClaims }) => {
+export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, onBack, onOpenClaims, onDeleted }) => {
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'policies' | 'goals' | 'balance' | 'compliance'>('policies');
+
+  // CRUD (update / delete) state.
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<EditForm | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -90,6 +120,73 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
     })();
     return () => { mounted = false; };
   }, [clientId]);
+
+  const openEdit = () => {
+    if (!client) return;
+    setForm({
+      title: client.title || '',
+      firstName: client.firstName || '',
+      secondName: client.secondName || '',
+      surname: client.surname || '',
+      occupation: client.occupation || '',
+      employer: client.employer || '',
+      mobileNumber: client.mobileNumber || '',
+      emailAddress: client.emailAddress || '',
+      primaryAddress: client.primaryAddress || '',
+      riskProfile: client.riskProfile || 'MODERATE',
+      riskScore: client.riskScore != null ? String(client.riskScore) : '',
+      nextReviewDate: client.nextReviewDate || '',
+    });
+    setActionError(null);
+    setEditing(true);
+  };
+
+  const setField = (key: keyof EditForm, value: string) =>
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    setSaving(true);
+    setActionError(null);
+    const payload = {
+      title: form.title,
+      firstName: form.firstName,
+      secondName: form.secondName || null,
+      surname: form.surname,
+      occupation: form.occupation || null,
+      employer: form.employer || null,
+      mobileNumber: form.mobileNumber || null,
+      emailAddress: form.emailAddress || null,
+      primaryAddress: form.primaryAddress || null,
+      riskProfile: form.riskProfile,
+      riskScore: form.riskScore ? parseInt(form.riskScore, 10) : null,
+      nextReviewDate: form.nextReviewDate || null,
+    };
+    const res = await secureFetch<ClientDetail>(`/clients/${clientId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    setSaving(false);
+    if (res.error || !res.data) {
+      setActionError(res.error || 'Could not save changes.');
+      return;
+    }
+    setClient(res.data);
+    setEditing(false);
+  };
+
+  const doDelete = async () => {
+    setDeleting(true);
+    setActionError(null);
+    const res = await secureFetch(`/clients/${clientId}`, { method: 'DELETE' });
+    setDeleting(false);
+    if (res.status === 204 || res.status === 200) {
+      (onDeleted || onBack)();
+      return;
+    }
+    setActionError(res.error || 'Could not delete this client.');
+  };
 
   const held = useMemo(() => new Set((client?.documents || []).map((d) => d.type)), [client]);
   const gaps = MANDATORY_DOCS.filter((d) => !held.has(d.type));
@@ -147,10 +244,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
           </div>
         </div>
         <div className="c360-actions">
-          <button className="btn btn-primary"><RefreshCw size={15} /> Sync Astute</button>
+          <button className="btn btn-primary" onClick={openEdit}><Pencil size={15} /> Edit client</button>
           <button className="btn btn-secondary"><Send size={15} /> Issue broker letter</button>
-          <button className="btn btn-secondary"><FileText size={15} /> Generate IRP5 pack</button>
           <button className="btn btn-gold" onClick={onOpenClaims}><Sparkles size={15} /> New claim</button>
+          <button className="btn btn-danger" onClick={() => { setActionError(null); setConfirmDelete(true); }}>
+            <Trash2 size={15} /> Delete
+          </button>
         </div>
       </section>
 
@@ -360,9 +459,90 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
           </div>
         )}
       </section>
+
+      {/* Edit client (Update) */}
+      {editing && form && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-label="Edit client">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Edit client · <span className="mono">{client.reference}</span></h2>
+              <button onClick={() => setEditing(false)} aria-label="Close" className="text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={saveEdit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6">
+              <Labeled label="Title"><input className="form-input" value={form.title} onChange={(e) => setField('title', e.target.value)} /></Labeled>
+              <Labeled label="First name"><input className="form-input" value={form.firstName} onChange={(e) => setField('firstName', e.target.value)} required /></Labeled>
+              <Labeled label="Second name"><input className="form-input" value={form.secondName} onChange={(e) => setField('secondName', e.target.value)} /></Labeled>
+              <Labeled label="Surname"><input className="form-input" value={form.surname} onChange={(e) => setField('surname', e.target.value)} required /></Labeled>
+              <Labeled label="Occupation"><input className="form-input" value={form.occupation} onChange={(e) => setField('occupation', e.target.value)} /></Labeled>
+              <Labeled label="Employer"><input className="form-input" value={form.employer} onChange={(e) => setField('employer', e.target.value)} /></Labeled>
+              <Labeled label="Mobile number"><input className="form-input" value={form.mobileNumber} onChange={(e) => setField('mobileNumber', e.target.value)} /></Labeled>
+              <Labeled label="Email address"><input type="email" className="form-input" value={form.emailAddress} onChange={(e) => setField('emailAddress', e.target.value)} /></Labeled>
+              <div className="sm:col-span-2">
+                <Labeled label="Primary address"><input className="form-input" value={form.primaryAddress} onChange={(e) => setField('primaryAddress', e.target.value)} /></Labeled>
+              </div>
+              <Labeled label="Risk profile">
+                <select className="form-input" value={form.riskProfile} onChange={(e) => setField('riskProfile', e.target.value)}>
+                  <option value="CONSERVATIVE">Conservative</option>
+                  <option value="MODERATE">Moderate</option>
+                  <option value="AGGRESSIVE">Aggressive</option>
+                </select>
+              </Labeled>
+              <Labeled label="Risk score (0–100)"><input type="number" min={0} max={100} className="form-input" value={form.riskScore} onChange={(e) => setField('riskScore', e.target.value)} /></Labeled>
+              <div className="sm:col-span-2">
+                <Labeled label="Next review date"><input type="date" className="form-input" value={form.nextReviewDate} onChange={(e) => setField('nextReviewDate', e.target.value)} /></Labeled>
+              </div>
+
+              {actionError && <p className="sm:col-span-2 text-sm text-rose-600">{actionError}</p>}
+
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+                <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete client (Delete) */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm delete">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <AlertTriangle size={20} />
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Delete this client?</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  This permanently removes <b>{client.fullName}</b> ({client.reference}) and all linked ledger entries,
+                  goals, policies, documents and claims. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            {actionError && <p className="mt-3 text-sm text-rose-600">{actionError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="btn btn-secondary" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={doDelete} disabled={deleting}>
+                {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+const Labeled: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <label className="block">
+    <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+    {children}
+  </label>
+);
 
 const ScopeItem: React.FC<{ icon: React.ReactNode; title: string; body: string; providers: PolicyRow[] }> = ({ icon, title, body, providers }) => (
   <div className="scope-item">

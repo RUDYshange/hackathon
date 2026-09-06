@@ -30,6 +30,25 @@ class ClaimRepository:
         return claim
 
     @staticmethod
+    def update(claim: Claim, data: dict) -> Claim:
+        stage_changed_to = None
+        for k, v in data.items():
+            if hasattr(claim, k) and v is not None:
+                if k == "stage" and v != claim.stage:
+                    stage_changed_to = v
+                setattr(claim, k, v)
+        claim.save()
+        if stage_changed_to:
+            ClaimLogEntry.objects.create(claim=claim, text=f"Claim details updated; stage set to {stage_changed_to}")
+        else:
+            ClaimLogEntry.objects.create(claim=claim, text="Claim details updated")
+        return claim
+
+    @staticmethod
+    def delete(claim: Claim) -> None:
+        claim.delete()
+
+    @staticmethod
     def advance_stage(claim: Claim) -> Claim:
         claim.advance()
         return claim

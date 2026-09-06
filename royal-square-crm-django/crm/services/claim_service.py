@@ -66,6 +66,36 @@ class ClaimService:
         claim = ClaimRepository.create(mapped)
         return ClaimService.to_response(claim)
 
+    # camelCase API field -> Django model field (editable claim attributes).
+    FIELD_MAP = {
+        "insurer": "insurer",
+        "policyNumber": "policy_number",
+        "insurerClaimNumber": "insurer_claim_number",
+        "claimsHandler": "claims_handler",
+        "claimType": "claim_type",
+        "incidentDate": "incident_date",
+        "lodgedDate": "lodged_date",
+        "description": "description",
+        "stage": "stage",
+    }
+
+    @classmethod
+    def update_claim(cls, claim_id: str, data: dict) -> Optional[Dict[str, Any]]:
+        claim = ClaimRepository.get_by_id(claim_id)
+        if not claim:
+            return None
+        mapped = {cls.FIELD_MAP[k]: v for k, v in data.items() if k in cls.FIELD_MAP}
+        ClaimRepository.update(claim, mapped)
+        return ClaimService.to_response(claim)
+
+    @staticmethod
+    def delete_claim(claim_id: str) -> bool:
+        claim = ClaimRepository.get_by_id(claim_id)
+        if not claim:
+            return False
+        ClaimRepository.delete(claim)
+        return True
+
     @staticmethod
     def advance_stage(claim_id: str) -> Optional[Dict[str, Any]]:
         claim = ClaimRepository.get_by_id(claim_id)

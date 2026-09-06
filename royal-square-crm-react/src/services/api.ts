@@ -36,7 +36,13 @@ export async function secureFetch<T = any>(
       return { status: response.status, error: errorMsg };
     }
 
-    const data = await response.json();
+    // 204 No Content (e.g. successful DELETE) has no body to parse.
+    if (response.status === 204) {
+      return { status: 204 };
+    }
+
+    const text = await response.text();
+    const data = text ? (JSON.parse(text) as T) : undefined;
     return { status: response.status, data };
   } catch (err: any) {
     return { status: 0, error: err.message || 'Network connection failed' };

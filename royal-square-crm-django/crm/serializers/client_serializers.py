@@ -17,6 +17,25 @@ class CreateClientSerializer(serializers.Serializer):
     riskProfile = serializers.ChoiceField(choices=["CONSERVATIVE", "MODERATE", "AGGRESSIVE"], default="MODERATE")
     riskScore = serializers.IntegerField(required=False, allow_null=True)
 
+class UpdateClientSerializer(serializers.Serializer):
+    """Partial update — every field is optional; only supplied fields change."""
+    title = serializers.CharField(max_length=10, required=False)
+    firstName = serializers.CharField(max_length=60, required=False)
+    secondName = serializers.CharField(max_length=60, required=False, allow_blank=True, allow_null=True)
+    surname = serializers.CharField(max_length=60, required=False)
+    idNumber = serializers.RegexField(regex=r'^\d{13}$', required=False, allow_blank=True, allow_null=True)
+    dateOfBirth = serializers.DateField(required=False, allow_null=True)
+    licenceExpiry = serializers.DateField(required=False, allow_null=True)
+    nextReviewDate = serializers.DateField(required=False, allow_null=True)
+    occupation = serializers.CharField(max_length=80, required=False, allow_blank=True, allow_null=True)
+    employer = serializers.CharField(max_length=80, required=False, allow_blank=True, allow_null=True)
+    annualIncome = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
+    mobileNumber = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    emailAddress = serializers.EmailField(max_length=120, required=False, allow_blank=True, allow_null=True)
+    primaryAddress = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    riskProfile = serializers.ChoiceField(choices=["CONSERVATIVE", "MODERATE", "AGGRESSIVE"], required=False)
+    riskScore = serializers.IntegerField(required=False, allow_null=True)
+
 class ClientSummarySerializer(serializers.Serializer):
     id = serializers.CharField()
     reference = serializers.CharField()
@@ -37,6 +56,9 @@ class ClientDetailSerializer(serializers.Serializer):
     reference = serializers.CharField()
     title = serializers.CharField()
     fullName = serializers.CharField()
+    firstName = serializers.CharField()
+    secondName = serializers.CharField(allow_null=True, allow_blank=True)
+    surname = serializers.CharField()
     maskedIdNumber = serializers.CharField(allow_null=True)
     dateOfBirth = serializers.DateField(allow_null=True)
     age = serializers.IntegerField(allow_null=True)

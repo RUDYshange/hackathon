@@ -44,3 +44,7 @@ class ClientRepository:
                 setattr(client, k, v)
         client.save()
         return client
+
+    @staticmethod
+    def delete(client: Client) -> None:
+        client.delete()
