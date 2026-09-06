@@ -9,6 +9,7 @@ from crm.views.claim_views import (
 from crm.views.reminder_views import ReminderListView, RuleListView, ReminderDismissView
 from crm.views.ui_views import ClientFormSchemaView, ClaimFormSchemaView
 from crm.views.assistant_views import AssistantVoiceView
+from crm.views.i18n_views import TranslateView
 
 urlpatterns = [
     # Clients
@@ -38,6 +39,10 @@ urlpatterns = [
     # Voice Assistant (Groq Whisper + Llama tool-calling)
     path('assistant/voice', AssistantVoiceView.as_view()),
     path('assistant/voice/', AssistantVoiceView.as_view()),
+
+    # UI translation (whole-app language switching)
+    path('i18n/translate', TranslateView.as_view()),
+    path('i18n/translate/', TranslateView.as_view()),
 
     # Server-Driven UI Schemas
     path('ui/schemas/client-form', ClientFormSchemaView.as_view()),

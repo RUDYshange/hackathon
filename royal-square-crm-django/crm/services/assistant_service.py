@@ -2,7 +2,7 @@
 
 Pipeline for one turn:
   1. Audio  -> Groq Whisper -> transcript (+ detected language)
-  2. Transcript + tool definitions -> Groq Llama 3.3 70B
+  2. Transcript + tool definitions -> Groq tool-calling agent
   3. The model either answers directly or calls one/more CRM tools
   4. Tool results are fed back until the model produces a final reply,
      written in the same language the user spoke.
@@ -10,13 +10,19 @@ Pipeline for one turn:
 Only the transcript ever leaves the machine; the Groq key stays server-side.
 """
 import json
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
 
 from crm.services import assistant_tools
 
-MAX_TOOL_ROUNDS = 6
+# Bound worst-case latency so the endpoint always responds promptly instead of
+# hanging (a hung request is what surfaces in the browser as a "network error").
+MAX_TOOL_ROUNDS = 4          # max reasoning/tool rounds per turn
+MAX_WALL_SECONDS = 45        # overall time budget for the agent loop
+GROQ_TIMEOUT_SECONDS = 30.0  # per HTTP call to Groq
+GROQ_MAX_RETRIES = 1
 MAX_HISTORY_MESSAGES = 12
 
 SYSTEM_PROMPT = """You are the voice assistant for Royal Square Financial, a South African \
@@ -37,6 +43,10 @@ short clarifying question instead of guessing.
 - Before performing a write action (creating a client, registering or advancing a \
 claim, dismissing a reminder), make sure you have the details you need. If the user \
 has clearly asked for the action and the details are present, proceed.
+- Be efficient with tools. Prefer the list_* summaries, which already include key \
+figures. Do NOT call get_client_detail or get_claim for every record — only fetch \
+one record's detail when the user asks about that specific client or claim. Answer \
+in as few tool calls as possible.
 - Keep replies concise and speakable — this is a voice interface, so avoid long \
 lists, tables or markdown. Summarise naturally in a sentence or two."""
 
@@ -52,7 +62,12 @@ def _client():
             "GROQ_API_KEY is not set. Add it to royal-square-crm-django/.env to enable the voice assistant."
         )
     from groq import Groq
-    return Groq(api_key=api_key)
+    return Groq(api_key=api_key, timeout=GROQ_TIMEOUT_SECONDS, max_retries=GROQ_MAX_RETRIES)
+
+
+# Public alias so other services (e.g. i18n translation) can reuse one client factory.
+def get_groq_client():
+    return _client()
 
 
 def transcribe(audio_bytes: bytes, filename: str = "audio.webm") -> Tuple[str, Optional[str]]:
@@ -80,8 +95,9 @@ def run_conversation(
     """Run one agent turn with tool-calling. Returns reply text + actions taken."""
     client = _client()
     enable_write = getattr(settings, "ASSISTANT_ENABLE_WRITE_ACTIONS", True)
-    model = getattr(settings, "GROQ_AGENT_MODEL", "llama-3.3-70b-versatile")
+    model = getattr(settings, "GROQ_AGENT_MODEL", "openai/gpt-oss-120b")
     tool_specs = assistant_tools.get_tool_specs(enable_write)
+    deadline = time.monotonic() + MAX_WALL_SECONDS
 
     system = SYSTEM_PROMPT
     if language:
@@ -99,6 +115,9 @@ def run_conversation(
     actions: List[Dict[str, Any]] = []
 
     for _ in range(MAX_TOOL_ROUNDS):
+        # Stop opening new tool rounds once the time budget is spent.
+        if time.monotonic() >= deadline:
+            break
         response = client.chat.completions.create(
             model=model,
             messages=messages,

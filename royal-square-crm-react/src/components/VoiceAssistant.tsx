@@ -84,11 +84,17 @@ export const VoiceAssistant: React.FC = () => {
     };
     if (isJson) headers['Content-Type'] = 'application/json';
 
+    // Bound the wait so a slow/stuck request gives a clear message rather than
+    // hanging forever or surfacing a raw browser network error.
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 90000);
+
     try {
       const res = await fetch(`${BASE_URL}/assistant/voice`, {
         method: 'POST',
         headers,
         body,
+        signal: controller.signal,
       });
       const data: AssistantResponse = await res.json().catch(() => ({}));
 
@@ -119,8 +125,15 @@ export const VoiceAssistant: React.FC = () => {
         return next;
       });
     } catch (err: any) {
-      setError(err?.message || 'Network connection failed.');
+      if (err?.name === 'AbortError') {
+        setError('The assistant took too long to respond. Please try a shorter request.');
+      } else {
+        // Surface the real cause in the console for debugging; keep the UI message actionable.
+        console.error('Voice assistant request failed:', err);
+        setError('Could not reach the assistant. Check that the backend is running on port 8000, then try again.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -221,7 +234,7 @@ export const VoiceAssistant: React.FC = () => {
             )}
 
             {messages.map((m, i) => (
-              <div key={i} className={`va-msg va-msg-${m.role}`}>
+              <div key={i} className={`va-msg va-msg-${m.role}`} data-no-translate>
                 <div className="va-bubble">{m.content}</div>
                 {m.actions && m.actions.length > 0 && (
                   <div className="va-actions">

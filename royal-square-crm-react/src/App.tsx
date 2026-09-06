@@ -9,6 +9,7 @@ import { ComplianceView } from './views/ComplianceView';
 import { ProvidersView } from './views/ProvidersView';
 import { RemindersView } from './views/RemindersView';
 import { DeskView } from './views/DeskView';
+import { SettingsView } from './views/SettingsView';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import {
   Users,
@@ -22,7 +23,8 @@ import {
   ShieldCheck,
   Building2,
   BadgeCheck,
-  ChevronDown
+  ChevronDown,
+  Settings
 } from 'lucide-react';
 
 type ActiveTab =
@@ -35,7 +37,8 @@ type ActiveTab =
   | 'claim-detail'
   | 'compliance'
   | 'providers'
-  | 'reminders';
+  | 'reminders'
+  | 'settings';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
@@ -93,6 +96,7 @@ export const App: React.FC = () => {
           <span className="nav-section">Servicing</span>
           <NavItem active={railKey === 'new-client'} onClick={() => go('new-client')} icon={<UserPlus size={16} />} label="Onboard client" />
           <NavItem active={railKey === 'sdui'} onClick={() => go('sdui')} icon={<Layers size={16} />} label="Form engine" />
+          <NavItem active={railKey === 'settings'} onClick={() => go('settings')} icon={<Settings size={16} />} label="Settings" />
         </nav>
 
         <div className="rail-foot">
@@ -179,6 +183,8 @@ export const App: React.FC = () => {
           {activeTab === 'providers' && <ProvidersView />}
 
           {activeTab === 'reminders' && <RemindersView />}
+
+          {activeTab === 'settings' && <SettingsView />}
 
           <div className="compliance-footer">
             <ShieldCheck size={13} /> Institutional banking grade 256-bit encryption · POPIA &amp; FAIS compliant archive ·

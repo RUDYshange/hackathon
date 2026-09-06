@@ -1219,3 +1219,134 @@ select.form-input { appearance: auto; }
 
 .va-spin { animation: va-rotate 0.9s linear infinite; }
 @keyframes va-rotate { to { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   Settings view — application language
+   ========================================================================== */
+.settings-view { max-width: 880px; }
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.settings-head-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-line);
+  flex-shrink: 0;
+}
+.settings-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--text);
+  line-height: 1.2;
+}
+.settings-head p { color: var(--text-muted); font-size: 0.85rem; }
+.settings-translating {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-line);
+  padding: 5px 10px;
+  border-radius: var(--r-full);
+}
+
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  padding: 20px;
+}
+.settings-card-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  color: var(--gold-text);
+}
+.settings-card-head svg { color: var(--gold); margin-top: 2px; flex-shrink: 0; }
+.settings-card-head h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text);
+}
+.settings-card-head p { color: var(--text-muted); font-size: 0.82rem; margin-top: 2px; }
+
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.lang-tile {
+  position: relative;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-low);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.lang-tile:hover {
+  border-color: var(--primary-line);
+  background: var(--surface-mid);
+}
+.lang-tile.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.lang-native {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.lang-name {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.lang-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: var(--surface-low);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.settings-note svg { color: var(--text-faint); margin-top: 2px; flex-shrink: 0; }
