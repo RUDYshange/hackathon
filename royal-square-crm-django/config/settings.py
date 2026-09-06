@@ -199,6 +199,16 @@ CSRF_TRUSTED_ORIGINS = [
     orig.strip() for orig in os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if orig.strip()
 ]
 
+# The React client attaches custom headers to every request (see secureFetch in
+# the frontend). They must be allowed by CORS or the browser's preflight blocks
+# every cross-origin API call. django-cors-headers only permits a standard set
+# by default, so we extend it with the app's custom headers.
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-csrf-token',
+    'x-idempotency-key',
+]
+
 # Hardened Security Middleware Settings (Secure by Design)
 SECURE_BROWSER_XSS_FILTER = os.getenv('SECURE_BROWSER_XSS_FILTER', 'True').lower() in ('true', '1')
 SECURE_CONTENT_TYPE_NOSNIFF = os.getenv('SECURE_CONTENT_TYPE_NOSNIFF', 'True').lower() in ('true', '1')
