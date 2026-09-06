@@ -102,6 +102,8 @@ export const DeskView: React.FC<DeskViewProps> = ({
   const [reminders, setReminders] = useState<ReminderSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncingAstute, setIsSyncingAstute] = useState<boolean>(false);
+  const [astuteFeedback, setAstuteFeedback] = useState<string | null>(null);
 
   const load = async () => {
     setIsLoading(true);
@@ -117,6 +119,23 @@ export const DeskView: React.FC<DeskViewProps> = ({
     setClaims(claimRes.data || []);
     setReminders(reminderRes.data || []);
     setIsLoading(false);
+  };
+
+  const handleSyncAstute = async () => {
+    setIsSyncingAstute(true);
+    const res = await secureFetch<{ message: string; switchBatchRef: string; matchedClients: number; policiesSynced: number }>('/astute/sync', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    setIsSyncingAstute(false);
+    if (res.data) {
+      setAstuteFeedback(`Astute FSE Synchronized: ${res.data.policiesSynced} live policies verified across ${res.data.matchedClients} clients (Batch Ref: ${res.data.switchBatchRef})`);
+      await load();
+      setTimeout(() => setAstuteFeedback(null), 7000);
+    } else {
+      setAstuteFeedback(res.error || 'Astute sync failed');
+      setTimeout(() => setAstuteFeedback(null), 5000);
+    }
   };
 
   useEffect(() => {
@@ -167,12 +186,19 @@ export const DeskView: React.FC<DeskViewProps> = ({
             <CalendarDays size={15} />
             {today.toLocaleDateString('en-ZA', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </span>
-          <button className="btn btn-secondary" onClick={load}>
-            <RefreshCw size={15} className={isLoading ? 'spin-icon' : ''} /> Sync Astute feed
+          <button className="btn btn-secondary" onClick={handleSyncAstute} disabled={isSyncingAstute}>
+            <RefreshCw size={15} className={isSyncingAstute ? 'spin-icon' : ''} /> {isSyncingAstute ? 'Syncing Astute Exchange...' : 'Sync Astute feed'}
           </button>
           <button className="btn btn-primary"><Download size={15} /> Export FAIS audit report</button>
         </div>
       </section>
+
+      {astuteFeedback && (
+        <div className="alert-banner alert-success" style={{ background: '#ecfdf5', borderColor: '#6ee7b7', color: '#065f46', marginBottom: 16 }}>
+          <BadgeCheck size={18} color="#059669" />
+          <span style={{ fontWeight: 500 }}>{astuteFeedback}</span>
+        </div>
+      )}
 
       {error && (
         <div className="alert-banner alert-error">

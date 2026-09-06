@@ -114,6 +114,7 @@ export function App() {
       <AdvisorConsole
         onSignOut={handleSignOut}
         advisorName={session?.name}
+        onSwitchToCustomer={() => setView('customer')}
       />
     );
   }

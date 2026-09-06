@@ -79,6 +79,10 @@ class LedgerEntry(models.Model):
 class Goal(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='goals')
+    shared_with = models.ForeignKey(
+        Client, on_delete=models.SET_NULL, blank=True, null=True, related_name='shared_goals',
+        help_text="Optional co-client (e.g. spouse or partner) sharing this wealth goal"
+    )
     name = models.CharField(max_length=120)
     kind = models.CharField(max_length=30) # RETIREMENT, EDUCATION, WEALTH
     target_amount = models.DecimalField(max_digits=15, decimal_places=2)

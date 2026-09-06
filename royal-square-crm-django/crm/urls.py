@@ -6,7 +6,8 @@ from crm.views.claim_views import (
     ClaimAdvanceView,
     ClaimToggleChecklistView
 )
-from crm.views.reminder_views import ReminderListView, RuleListView, ReminderDismissView
+from crm.views.reminder_views import ReminderListView, RuleListView, ReminderDismissView, ReminderDispatchView
+from crm.views.goal_views import ClientGoalListCreateView, GoalDetailView
 from crm.views.ui_views import ClientFormSchemaView, ClaimFormSchemaView
 from crm.views.assistant_views import AssistantVoiceView
 from crm.views.i18n_views import TranslateView
@@ -15,7 +16,8 @@ from crm.views.auth_views import RegisterView, LoginView, MeView, LogoutView
 from crm.views.provider_views import (
     ProviderSyncClientView,
     ProviderSubmitClaimView,
-    ProviderIntegrationLogView
+    ProviderIntegrationLogView,
+    AstuteSyncView
 )
 
 urlpatterns = [
@@ -52,6 +54,14 @@ urlpatterns = [
     path('reminders/rules/', RuleListView.as_view()),
     path('reminders/dismiss', ReminderDismissView.as_view()),
     path('reminders/dismiss/', ReminderDismissView.as_view()),
+    path('reminders/dispatch', ReminderDispatchView.as_view()),
+    path('reminders/dispatch/', ReminderDispatchView.as_view()),
+
+    # Goals (Adviser Write Endpoints & Shared Goals)
+    path('clients/<str:client_id>/goals', ClientGoalListCreateView.as_view()),
+    path('clients/<str:client_id>/goals/', ClientGoalListCreateView.as_view()),
+    path('goals/<str:goal_id>', GoalDetailView.as_view()),
+    path('goals/<str:goal_id>/', GoalDetailView.as_view()),
 
     # Voice Assistant (Groq Whisper + Llama tool-calling)
     path('assistant/voice', AssistantVoiceView.as_view()),
@@ -70,6 +80,10 @@ urlpatterns = [
     path('ui/schemas/client-form/', ClientFormSchemaView.as_view()),
     path('ui/schemas/claim-form', ClaimFormSchemaView.as_view()),
     path('ui/schemas/claim-form/', ClaimFormSchemaView.as_view()),
+
+    # Astute Financial Services Exchange (FSE)
+    path('astute/sync', AstuteSyncView.as_view()),
+    path('astute/sync/', AstuteSyncView.as_view()),
 
     # Mock Provider API (Pass-Through Underwriting & Claims Intake)
     path('providers/sync-client', ProviderSyncClientView.as_view()),

@@ -4,11 +4,17 @@ from crm.rules.base import ReminderRule
 from crm.rules.consent_rule import ClientConsentRule
 from crm.rules.licence_expiry_rule import LicenceExpiryRule
 from crm.rules.review_date_rule import AnnualReviewRule
+from crm.rules.valuation_certificate_rule import ValuationCertificateRule
+from crm.rules.retirement_fee_rule import RetirementFeeRenewalRule
+from crm.rules.birthday_anniversary_rule import BirthdayAnniversaryRule
 
 RULES: List[ReminderRule] = [
     ClientConsentRule(),
     LicenceExpiryRule(),
-    AnnualReviewRule()
+    AnnualReviewRule(),
+    ValuationCertificateRule(),
+    RetirementFeeRenewalRule(),
+    BirthdayAnniversaryRule(),
 ]
 
 class ReminderEngine:

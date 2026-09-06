@@ -1,6 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import { secureFetch } from '../services/api';
-import { BellRing, Check, ShieldCheck, Clock, Mail, MessageSquare, Calendar, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { BellRing, Check, ShieldCheck, Clock, Mail, MessageSquare, Calendar, ChevronLeft, ChevronRight, Plus, X, Send, Loader2 } from 'lucide-react';
 
 interface Reminder {
   key: string;
@@ -22,6 +22,8 @@ export const RemindersView: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newReminder, setNewReminder] = useState({ title: '', clientName: '', dueOn: dateToKey(new Date()), channel: 'CALENDAR' });
+  const [dispatchingKey, setDispatchingKey] = useState<string | null>(null);
+  const [dispatchedMap, setDispatchedMap] = useState<Record<string, string>>({});
 
   const fetchReminders = async () => {
     setIsLoading(true);
@@ -42,6 +44,34 @@ export const RemindersView: React.FC = () => {
       body: JSON.stringify({ key })
     });
     setReminders((prev) => prev.filter((r) => r.key !== key));
+  };
+
+  const handleDispatch = async (rem: Reminder) => {
+    setDispatchingKey(rem.key);
+    try {
+      const res = await secureFetch<{ status: string; deliverySummary: string }>('/reminders/dispatch', {
+        method: 'POST',
+        body: JSON.stringify({
+          key: rem.key,
+          clientId: rem.clientId,
+          recipient: rem.recipient,
+          channel: rem.channel,
+          clientName: rem.clientName
+        })
+      });
+      if (res.data?.deliverySummary) {
+        setDispatchedMap((prev) => ({ ...prev, [rem.key]: res.data?.deliverySummary || 'Dispatched' }));
+        setTimeout(() => {
+          setReminders((prev) => prev.filter((r) => r.key !== rem.key));
+        }, 2500);
+      } else {
+        setReminders((prev) => prev.filter((r) => r.key !== rem.key));
+      }
+    } catch {
+      handleDismiss(rem.key);
+    } finally {
+      setDispatchingKey(null);
+    }
   };
 
   const getChannelIcon = (channel: string) => {
@@ -161,14 +191,40 @@ export const RemindersView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="reminder-right">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleDismiss(rem.key)}
-                  title="Dismiss this notification"
-                >
-                  <Check size={14} /> Dismiss
-                </button>
+              <div className="reminder-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {dispatchedMap[rem.key] ? (
+                  <span className="pill-badge" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '12px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <Check size={13} /> {dispatchedMap[rem.key]}
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleDispatch(rem)}
+                      disabled={dispatchingKey === rem.key}
+                      title={`Dispatch ${rem.channel} notice to ${rem.recipient}`}
+                      style={{ background: '#1e3a8a', color: '#fff', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {dispatchingKey === rem.key ? (
+                        <Loader2 size={13} className="spin-icon" />
+                      ) : rem.channel === 'SMS' ? (
+                        <MessageSquare size={13} />
+                      ) : rem.channel === 'EMAIL' ? (
+                        <Mail size={13} />
+                      ) : (
+                        <Send size={13} />
+                      )}
+                      <span>Dispatch {rem.channel === 'EMAIL' ? 'Email' : rem.channel === 'SMS' ? 'SMS' : 'Notice'}</span>
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleDismiss(rem.key)}
+                      title="Dismiss this notification"
+                    >
+                      <Check size={14} /> Dismiss
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

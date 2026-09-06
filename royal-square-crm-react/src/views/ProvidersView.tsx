@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Building2, Link2, Phone, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Building2, Link2, Phone, RefreshCw, ShieldCheck } from 'lucide-react';
 import { secureFetch } from '../services/api';
 
 interface ClientSummary { id: string; netWorth: number | string; }
@@ -23,18 +23,39 @@ export const ProvidersView: React.FC = () => {
   const [aum, setAum] = useState(0);
   const [policies, setPolicies] = useState<PolicyRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncingAstute, setIsSyncingAstute] = useState(false);
+  const [astuteFeedback, setAstuteFeedback] = useState<string | null>(null);
+
+  const load = async () => {
+    const res = await secureFetch<ClientSummary[]>('/clients');
+    const clients = res.data || [];
+    setAum(clients.reduce((t, c) => t + (typeof c.netWorth === 'string' ? parseFloat(c.netWorth) : c.netWorth || 0), 0));
+
+    const details = await Promise.all(clients.map((c) => secureFetch<ClientDetail>(`/clients/${c.id}`)));
+    setPolicies(details.flatMap((d) => d.data?.policies || []));
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    (async () => {
-      const res = await secureFetch<ClientSummary[]>('/clients');
-      const clients = res.data || [];
-      setAum(clients.reduce((t, c) => t + (typeof c.netWorth === 'string' ? parseFloat(c.netWorth) : c.netWorth || 0), 0));
-
-      const details = await Promise.all(clients.map((c) => secureFetch<ClientDetail>(`/clients/${c.id}`)));
-      setPolicies(details.flatMap((d) => d.data?.policies || []));
-      setIsLoading(false);
-    })();
+    load();
   }, []);
+
+  const handleSyncAstute = async () => {
+    setIsSyncingAstute(true);
+    const res = await secureFetch<{ message: string; switchBatchRef: string; matchedClients: number; policiesSynced: number }>('/astute/sync', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    setIsSyncingAstute(false);
+    if (res.data) {
+      setAstuteFeedback(`Astute FSE Synchronized: ${res.data.policiesSynced} active policies updated across ${res.data.matchedClients} clients (Batch: ${res.data.switchBatchRef})`);
+      await load();
+      setTimeout(() => setAstuteFeedback(null), 7000);
+    } else {
+      setAstuteFeedback(res.error || 'Astute sync failed');
+      setTimeout(() => setAstuteFeedback(null), 5000);
+    }
+  };
 
   const byProvider = useMemo(() => {
     const map = new Map<string, { count: number; premium: number }>();
@@ -54,8 +75,17 @@ export const ProvidersView: React.FC = () => {
           <h1 className="view-title">Product provider panel</h1>
           <p className="view-subtitle">Institution split, broker service level agreements and Astute integration status</p>
         </div>
-        <button className="btn btn-secondary"><RefreshCw size={15} /> Refresh Astute feed</button>
+        <button className="btn btn-secondary" onClick={handleSyncAstute} disabled={isSyncingAstute}>
+          <RefreshCw size={15} className={isSyncingAstute ? 'spin-icon' : ''} /> {isSyncingAstute ? 'Syncing Astute...' : 'Refresh Astute feed'}
+        </button>
       </div>
+
+      {astuteFeedback && (
+        <div className="alert-banner alert-success" style={{ background: '#ecfdf5', borderColor: '#6ee7b7', color: '#065f46', marginBottom: 16 }}>
+          <BadgeCheck size={18} color="#059669" />
+          <span style={{ fontWeight: 500 }}>{astuteFeedback}</span>
+        </div>
+      )}
 
       <section className="kpi-grid">
         <article className="kpi-card">

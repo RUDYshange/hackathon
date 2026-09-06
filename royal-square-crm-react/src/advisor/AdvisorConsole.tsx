@@ -93,6 +93,8 @@ interface AdvisorConsoleProps {
   onSignOut?: () => void;
   /** Display name of the signed-in adviser (from the auth session). */
   advisorName?: string;
+  /** Switch to client-facing dashboard */
+  onSwitchToCustomer?: () => void;
 }
 
 /**
@@ -100,7 +102,7 @@ interface AdvisorConsoleProps {
  * one of two workspaces reachable from the landing page: businesses/advisers land
  * here, while clients land on the client portal (ClientDashboardView).
  */
-export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName }) => {
+export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName, onSwitchToCustomer }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -331,6 +333,17 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
 
           <button className="btn btn-secondary" onClick={() => handleOpenClaims(true)}><ClipboardPlus size={15} /> Register claim</button>
           <button className="btn btn-primary" onClick={() => go('new-client')}><UserPlus size={15} /> New client</button>
+
+          {onSwitchToCustomer && (
+            <button
+              className="btn btn-secondary"
+              onClick={onSwitchToCustomer}
+              title="Preview Client Portal"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderColor: '#cbd5e1' }}
+            >
+              <Users size={14} /> Client View
+            </button>
+          )}
 
           <div className="adviser-card" style={{ border: 'none', padding: '0 0 0 8px' }}>
             <div className="adviser-avatar">{initials}</div>

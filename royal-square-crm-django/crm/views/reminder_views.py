@@ -21,3 +21,9 @@ class ReminderDismissView(APIView):
             return Response({"error": "key is required"}, status=status.HTTP_400_BAD_REQUEST)
         ReminderService.dismiss_reminder(key)
         return Response({"status": "dismissed", "key": key}, status=status.HTTP_200_OK)
+
+class ReminderDispatchView(APIView):
+    def post(self, request):
+        result = ReminderService.dispatch_reminder(request.data)
+        return Response(result, status=status.HTTP_200_OK)
+

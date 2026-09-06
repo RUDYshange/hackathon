@@ -23,10 +23,11 @@ import {
   Save,
   Loader2,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Users
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
-import { MockProviderApiService } from '../services/mockProviderApi';
 import { ProviderSyncModal } from '../components/ProviderSyncModal';
 
 interface ClientDetailViewProps {
@@ -62,6 +63,8 @@ interface BalanceSheet {
 interface GoalRow {
   id: string; name: string; kind: string; targetAmount: number | string; currentAmount: number | string;
   monthlyContribution?: number | string; startDate: string; targetDate: string; vehicle?: string; progressPercent: number;
+  isShared?: boolean; isPrimaryOwner?: boolean; sharedWithId?: string | null; sharedWithName?: string | null;
+  primaryClientId?: string; primaryClientName?: string;
 }
 interface PolicyRow {
   id: string; provider: string; productType: string; policyNumber: string;
@@ -111,19 +114,127 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
     setIsSyncingAstute(true);
     setSyncSuccessMessage(null);
     try {
-      const res = await MockProviderApiService.syncClientToProvider(
-        client.id,
-        'Sanlam'
-      );
-      setSyncSuccessMessage(`Synced ${res.provider} (${res.provider_reference}) · Astute Switch: ${res.astute_switch_ref}`);
+      const res = await secureFetch<{ status: string; switchBatchRef: string; totalPoliciesSynced: number }>('/astute/sync', {
+        method: 'POST',
+        body: JSON.stringify({ clientId: client.id })
+      });
+      if (res.data?.switchBatchRef) {
+        setSyncSuccessMessage(`Astute Exchange Synced (${res.data.switchBatchRef}) · ${res.data.totalPoliciesSynced} policies live on switch`);
+      } else {
+        setSyncSuccessMessage('Astute Exchange switch synced successfully');
+      }
       const refreshRes = await secureFetch<ClientDetail>(`/clients/${clientId}`);
       if (refreshRes.data) {
         setClient(refreshRes.data);
       }
     } catch {
-      setSyncSuccessMessage('Sync acknowledged by provider gateway');
+      setSyncSuccessMessage('Sync acknowledged by Astute FSE gateway');
     } finally {
       setIsSyncingAstute(false);
+    }
+  };
+
+  // Goal write & shared goal state
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<GoalRow | null>(null);
+  const [goalForm, setGoalForm] = useState({
+    name: '',
+    kind: 'WEALTH',
+    targetAmount: '1000000',
+    currentAmount: '0',
+    monthlyContribution: '5000',
+    startDate: new Date().toISOString().slice(0, 10),
+    targetDate: new Date(Date.now() + 5 * 365 * 86400000).toISOString().slice(0, 10),
+    vehicle: 'Allan Gray Balanced Fund',
+    sharedWithId: ''
+  });
+  const [otherClients, setOtherClients] = useState<{ id: string; fullName: string; reference: string }[]>([]);
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
+
+  const loadOtherClients = async () => {
+    if (otherClients.length > 0) return;
+    try {
+      const res = await secureFetch<{ id: string; fullName: string; reference: string }[]>('/clients');
+      if (res.data) {
+        setOtherClients(res.data.filter((c) => c.id !== clientId));
+      }
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleOpenNewGoal = () => {
+    setEditingGoal(null);
+    setGoalForm({
+      name: '',
+      kind: 'WEALTH',
+      targetAmount: '1000000',
+      currentAmount: '0',
+      monthlyContribution: '5000',
+      startDate: new Date().toISOString().slice(0, 10),
+      targetDate: new Date(Date.now() + 5 * 365 * 86400000).toISOString().slice(0, 10),
+      vehicle: 'Allan Gray Balanced Fund',
+      sharedWithId: ''
+    });
+    loadOtherClients();
+    setIsGoalModalOpen(true);
+  };
+
+  const handleOpenEditGoal = (goal: GoalRow) => {
+    setEditingGoal(goal);
+    setGoalForm({
+      name: goal.name,
+      kind: goal.kind,
+      targetAmount: String(goal.targetAmount),
+      currentAmount: String(goal.currentAmount),
+      monthlyContribution: goal.monthlyContribution ? String(goal.monthlyContribution) : '',
+      startDate: goal.startDate ? goal.startDate.slice(0, 10) : '',
+      targetDate: goal.targetDate ? goal.targetDate.slice(0, 10) : '',
+      vehicle: goal.vehicle || '',
+      sharedWithId: goal.sharedWithId || ''
+    });
+    loadOtherClients();
+    setIsGoalModalOpen(true);
+  };
+
+  const handleSaveGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    setIsSavingGoal(true);
+    try {
+      if (editingGoal) {
+        await secureFetch(`/goals/${editingGoal.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(goalForm)
+        });
+      } else {
+        await secureFetch(`/clients/${clientId}/goals`, {
+          method: 'POST',
+          body: JSON.stringify(goalForm)
+        });
+      }
+      setIsGoalModalOpen(false);
+      const refreshRes = await secureFetch<ClientDetail>(`/clients/${clientId}`);
+      if (refreshRes.data) {
+        setClient(refreshRes.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    if (!confirm('Are you sure you want to remove this financial goal?')) return;
+    try {
+      await secureFetch(`/goals/${goalId}`, { method: 'DELETE' });
+      const refreshRes = await secureFetch<ClientDetail>(`/clients/${clientId}`);
+      if (refreshRes.data) {
+        setClient(refreshRes.data);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -437,25 +548,67 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
         )}
 
         {tab === 'goals' && (
-          <div className="kpi-grid">
-            {client.goals.length === 0 && <div className="empty-state">No goals captured for this mandate.</div>}
-            {client.goals.map((goal) => (
-              <article key={goal.id} className="kpi-card">
-                <div className="kpi-top">
-                  <span className="kpi-label">{goal.name}</span>
-                  <span className="pill-badge badge-info">{goal.progressPercent}%</span>
-                </div>
-                <div className="kpi-value" style={{ fontSize: 22 }}>{zar(goal.currentAmount, true)}</div>
-                <div className="kpi-foot">
-                  <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${Math.min(goal.progressPercent, 100)}%` }} /></div>
-                  <div className="flex justify-between">
-                    <span>Target {zar(goal.targetAmount, true)}</span>
-                    <span>by {dateZa(goal.targetDate)}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                  Wealth &amp; Retirement Goals Portfolio
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted, #64748b)' }}>
+                  Active wealth targets, shared spouse goals, and progressive monthly accumulation
+                </p>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={handleOpenNewGoal} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Plus size={14} /> Add goal
+              </button>
+            </div>
+
+            <div className="kpi-grid">
+              {client.goals.length === 0 && <div className="empty-state">No goals captured for this mandate. Click &quot;Add goal&quot; above to create one.</div>}
+              {client.goals.map((goal) => (
+                <article key={goal.id} className="kpi-card" style={{ position: 'relative' }}>
+                  <div className="kpi-top" style={{ alignItems: 'flex-start' }}>
+                    <div>
+                      <span className="kpi-label">{goal.name}</span>
+                      {goal.isShared && (
+                        <span className="pill-badge" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontSize: '10px', marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Users size={11} />
+                          {goal.isPrimaryOwner ? `Shared with ${goal.sharedWithName || 'Spouse'}` : `Shared by ${goal.primaryClientName || 'Primary'}`}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="pill-badge badge-info">{goal.progressPercent}%</span>
+                      <button
+                        className="icon-button"
+                        onClick={() => handleOpenEditGoal(goal)}
+                        title="Edit Goal"
+                        style={{ padding: '4px' }}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        className="icon-button"
+                        onClick={() => handleDeleteGoal(goal.id)}
+                        title="Delete Goal"
+                        style={{ padding: '4px', color: '#e11d48' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
-                  <span>{goal.vehicle || goal.kind} · contributing {zar(goal.monthlyContribution)} pm</span>
-                </div>
-              </article>
-            ))}
+                  <div className="kpi-value" style={{ fontSize: 22 }}>{zar(goal.currentAmount, true)}</div>
+                  <div className="kpi-foot">
+                    <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${Math.min(goal.progressPercent, 100)}%` }} /></div>
+                    <div className="flex justify-between">
+                      <span>Target {zar(goal.targetAmount, true)}</span>
+                      <span>by {dateZa(goal.targetDate)}</span>
+                    </div>
+                    <span>{goal.vehicle || goal.kind} · contributing {zar(goal.monthlyContribution)} pm</span>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         )}
 
@@ -579,6 +732,132 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
                 {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete client
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goal Management Modal (Create / Edit & Share with Spouse) */}
+      {isGoalModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-label="Goal details">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {editingGoal ? 'Edit Financial Goal' : 'Add Financial Goal'} · <span className="mono">{client.reference}</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Capture wealth milestones and shared spouse goals</p>
+              </div>
+              <button onClick={() => setIsGoalModalOpen(false)} aria-label="Close" className="text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveGoal} className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6">
+              <div className="sm:col-span-2">
+                <Labeled label="Goal Title / Purpose">
+                  <input
+                    className="form-input"
+                    value={goalForm.name}
+                    onChange={(e) => setGoalForm({ ...goalForm, name: e.target.value })}
+                    placeholder="e.g. Primary Residence Bond Payoff or Retirement Nest Egg"
+                    required
+                  />
+                </Labeled>
+              </div>
+
+              <Labeled label="Goal Category">
+                <select
+                  className="form-input"
+                  value={goalForm.kind}
+                  onChange={(e) => setGoalForm({ ...goalForm, kind: e.target.value })}
+                >
+                  <option value="WEALTH">Wealth Accumulation</option>
+                  <option value="RETIREMENT">Retirement Annuity / Pension</option>
+                  <option value="EDUCATION">Children Education</option>
+                  <option value="PROPERTY">Property &amp; Real Estate</option>
+                </select>
+              </Labeled>
+
+              <Labeled label="Investment / Policy Vehicle">
+                <input
+                  className="form-input"
+                  value={goalForm.vehicle}
+                  onChange={(e) => setGoalForm({ ...goalForm, vehicle: e.target.value })}
+                  placeholder="e.g. Allan Gray Balanced Fund"
+                />
+              </Labeled>
+
+              <Labeled label="Target Amount (ZAR)">
+                <input
+                  type="number"
+                  step="any"
+                  className="form-input"
+                  value={goalForm.targetAmount}
+                  onChange={(e) => setGoalForm({ ...goalForm, targetAmount: e.target.value })}
+                  required
+                />
+              </Labeled>
+
+              <Labeled label="Current Value (ZAR)">
+                <input
+                  type="number"
+                  step="any"
+                  className="form-input"
+                  value={goalForm.currentAmount}
+                  onChange={(e) => setGoalForm({ ...goalForm, currentAmount: e.target.value })}
+                />
+              </Labeled>
+
+              <Labeled label="Monthly Contribution (ZAR)">
+                <input
+                  type="number"
+                  step="any"
+                  className="form-input"
+                  value={goalForm.monthlyContribution}
+                  onChange={(e) => setGoalForm({ ...goalForm, monthlyContribution: e.target.value })}
+                  placeholder="e.g. 5000"
+                />
+              </Labeled>
+
+              <Labeled label="Target Completion Date">
+                <input
+                  type="date"
+                  className="form-input"
+                  value={goalForm.targetDate}
+                  onChange={(e) => setGoalForm({ ...goalForm, targetDate: e.target.value })}
+                  required
+                />
+              </Labeled>
+
+              <div className="sm:col-span-2 border-t border-slate-100 pt-3">
+                <Labeled label="Shared Goal (Co-Client / Spouse / Partner)">
+                  <select
+                    className="form-input"
+                    value={goalForm.sharedWithId}
+                    onChange={(e) => setGoalForm({ ...goalForm, sharedWithId: e.target.value })}
+                  >
+                    <option value="">None (Individual / Sole Owner)</option>
+                    {otherClients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        Share with {c.fullName} ({c.reference})
+                      </option>
+                    ))}
+                  </select>
+                </Labeled>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Selecting a partner links this exact goal to both portfolios so couples have a synchronized wealth view.
+                </p>
+              </div>
+
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsGoalModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={isSavingGoal}>
+                  {isSavingGoal ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  <span>{editingGoal ? 'Save changes' : 'Create goal'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

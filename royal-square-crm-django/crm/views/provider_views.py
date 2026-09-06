@@ -69,3 +69,19 @@ class ProviderIntegrationLogView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+class AstuteSyncView(APIView):
+    """
+    POST /api/astute/sync
+    Synchronizes client policy holdings with the Astute Financial Services Exchange (FSE) switch.
+    """
+    def post(self, request):
+        client_id = request.data.get("client_id") or request.data.get("clientId")
+        try:
+            from crm.services.mock_provider_service import sync_astute_exchange
+            result = sync_astute_exchange(client_id=client_id)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

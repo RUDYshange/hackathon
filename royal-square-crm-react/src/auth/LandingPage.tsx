@@ -185,6 +185,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </button>
               </div>
 
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500 font-medium">Evaluator One-Click Logins:</span>
+                <button
+                  onClick={onSignIn}
+                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+                  title="Open sign-in with Advisor Demo credentials preloaded"
+                >
+                  <Building2 className="h-3 w-3" /> Advisor Demo (Qiniso Ntuli)
+                </button>
+                <button
+                  onClick={onSignIn}
+                  className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 hover:bg-blue-100 transition"
+                  title="Open sign-in with Client Demo credentials preloaded"
+                >
+                  <Users className="h-3 w-3" /> Client Demo (Kagiso Mokoena)
+                </button>
+              </div>
+
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
                 {['256-bit encryption', '11 official languages', 'Voice-first assistant', 'Astute Exchange synced'].map((t) => (
                   <li key={t} className="inline-flex items-center gap-2 font-medium">

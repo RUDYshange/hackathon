@@ -25,7 +25,12 @@ class ClientRepository:
             qs = Client.objects.prefetch_related('ledger_entries', 'goals', 'policies', 'documents')
             if scope is not None:
                 qs = qs.filter(**scope)
-            return qs.get(id=client_id)
+            try:
+                import uuid
+                uuid.UUID(str(client_id))
+                return qs.get(id=client_id)
+            except (ValueError, AttributeError):
+                return qs.filter(reference=str(client_id).strip()).first()
         except (Client.DoesNotExist, ValueError):
             return None
 
