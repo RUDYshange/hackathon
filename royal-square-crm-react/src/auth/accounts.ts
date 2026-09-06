@@ -28,7 +28,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   },
   {
     role: 'customer',
-    name: 'Kagiso & Lerato Mokoena',
+    name: 'Sipho Dlamini',
     email: 'client@royalsquare.co.za',
     password: 'Client@2026',
     blurb: 'Client portal — family wealth dashboard & claim journeys.',
