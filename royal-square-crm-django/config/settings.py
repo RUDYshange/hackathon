@@ -135,7 +135,7 @@ TIME_ZONE = 'Africa/Johannesburg'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # --------------------------------------------------------------------------- #
@@ -161,6 +161,9 @@ STORAGES = {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
+
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
