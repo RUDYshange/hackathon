@@ -1,0 +1,29 @@
+# Keep the build context small and reproducible.
+.git
+**/.git
+
+# Python
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/staticfiles
+**/*.sqlite3
+**/db.sqlite3
+
+# Node / Vite (dependencies and build output are regenerated in the image)
+**/node_modules
+royal-square-crm-react/dist
+**/.vite
+
+# Secrets and local env (provided at runtime via Render env vars)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Alternative FastAPI backend is not part of the combined image
+royal-square-crm-python
+
+# Misc
+**/.DS_Store
+**/*.log

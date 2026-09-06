@@ -2,7 +2,7 @@
 # Royal Square CRM — Root Makefile
 # ==============================================================================
 
-.PHONY: help run start run-local run-backend run-frontend install install-backend install-frontend setup migrate seed dev dev-backend dev-frontend build check clean
+.PHONY: help run serve start run-local run-backend run-frontend install install-backend install-frontend setup migrate seed dev dev-backend dev-frontend build check clean
 
 PYTHON_DIR := royal-square-crm-django
 REACT_DIR := royal-square-crm-react
@@ -32,6 +32,29 @@ run: ## Run the entire application locally (Django backend + React frontend)
 	(cd $(PYTHON_DIR) && ./venv/bin/python manage.py runserver 127.0.0.1:8000) & \
 	(cd $(REACT_DIR) && npm run dev -- --host 127.0.0.1 --port 5173) & \
 	wait
+
+serve: ## Run the WHOLE app as ONE server on http://localhost:8000 (Django serves the built React SPA — same origin, no CORS)
+	@echo "======================================================="
+	@echo "  Royal Square CRM — Combined App (single server)"
+	@echo "======================================================="
+	@if [ ! -d "$(VENV)" ]; then echo "==> First time setup: Installing backend..."; $(MAKE) install-backend; fi
+	@if [ ! -d "$(REACT_DIR)/node_modules" ]; then echo "==> First time setup: Installing frontend..."; $(MAKE) install-frontend; fi
+	@echo "==> Building React production bundle (API base = /api, same origin)..."
+	@cd $(REACT_DIR) && VITE_API_BASE_URL=/api npm run build
+	@echo "==> Collecting static files (SPA bundle + admin/DRF)..."
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py collectstatic --no-input
+	@echo "==> Applying database migrations..."
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py migrate --no-input
+	@echo "==> Seeding database (idempotent)..."
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py seed_data
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py seed_auth
+	@echo ""
+	@echo "  • App + API (one server): \033[32mhttp://localhost:8000\033[0m"
+	@echo "  • API health:             \033[32mhttp://localhost:8000/api/health\033[0m"
+	@echo "  • Django Admin:           \033[32mhttp://localhost:8000/admin\033[0m"
+	@echo ""
+	@echo "==> Serving combined app... Press Ctrl+C to stop."
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py runserver 127.0.0.1:8000
 
 start: run ## Alias for 'make run'
 

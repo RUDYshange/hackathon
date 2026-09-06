@@ -2,7 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+// `base` differs by command:
+//   - build  -> '/static/'  so the production bundle's asset URLs resolve under
+//     Django's STATIC_URL when the SPA is served by Django (combined app).
+//   - serve  -> '/'         so the standalone Vite dev server (make run) is
+//     reachable at http://localhost:5173/ as before.
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/static/' : '/',
   plugins: [react()],
   build: {
     // Transpile down to ES2019 so the bundle parses on older device browsers
@@ -20,4 +26,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

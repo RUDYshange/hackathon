@@ -138,18 +138,29 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise: compress and cache-bust collected static files in production.
-# manifest_strict=False keeps a deploy from failing if a template references a
-# static file that isn't present at collectstatic time.
+# --------------------------------------------------------------------------- #
+# Combined app: serve the built React (Vite) SPA from Django
+# --------------------------------------------------------------------------- #
+# The frontend is built with base '/static/', so its assets live under
+# STATIC_URL. We add the build directory to STATICFILES_DIRS so collectstatic
+# (production) and the dev server both serve /static/assets/*. index.html is
+# served by the SPA view in config/urls.py.
+FRONTEND_DIST = (BASE_DIR.parent / 'royal-square-crm-react' / 'dist').resolve()
+FRONTEND_INDEX = FRONTEND_DIST / 'index.html'
+STATICFILES_DIRS = [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else []
+
+# WhiteNoise: compress collected static files and serve them from gunicorn.
+# We use the non-manifest storage because Vite already content-hashes its
+# output filenames; the manifest backend would try to re-hash and rewrite
+# references inside the bundle, which is unnecessary and can break collectstatic.
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
-WHITENOISE_MANIFEST_STRICT = False
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
