@@ -368,12 +368,12 @@ export const ClientDashboardView: React.FC<{
             )}
             <button 
               onClick={onReportAccident}
-              aria-label="Register a claim or report motor accident"
+              aria-label="Accident report Short-term insurance"
               className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
             >
-              <ClipboardPlus className="w-4 h-4" aria-hidden="true" />
-              <span>Register Claim</span>
-              <span className="text-[11px] font-normal opacity-85 hidden xl:inline">• Motor &amp; Asset</span>
+              <Car className="w-4 h-4" aria-hidden="true" />
+              <span>Accident report</span>
+              <span className="text-xs font-medium opacity-90">• Short-term insurance</span>
               <ChevronRight className="w-4 h-4 opacity-70" aria-hidden="true" />
             </button>
             {onReportLoss && (
