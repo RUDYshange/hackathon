@@ -15,7 +15,16 @@ RUN npm ci
 
 # Build. `vite build` uses base '/static/'; API is same-origin at /api.
 COPY royal-square-crm-react/ ./
-ENV VITE_API_BASE_URL=/api
+# Build-time frontend config. Render injects the service's environment variables
+# as Docker build args with matching keys, so declaring these ARGs lets Vite
+# inline them into the bundle. NOTE: any VITE_* value is embedded in the public
+# JS bundle by design (it runs client-side), so restrict these keys by HTTP
+# referrer / API restrictions in the Google Cloud console.
+ARG VITE_GEMINI_API_KEY=""
+ARG VITE_GOOGLE_MAPS_API_KEY=""
+ENV VITE_API_BASE_URL=/api \
+    VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY \
+    VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
 # ---------- Stage 2: Django API + gunicorn (serves the SPA) ----------

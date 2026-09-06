@@ -45,3 +45,10 @@ services:
         sync: false
       - key: ASSISTANT_ENABLE_WRITE_ACTIONS
         value: "True"
+      # Frontend build-time keys (Render passes env vars to the Docker build as
+      # build args; the Dockerfile declares matching ARGs). These end up in the
+      # public JS bundle — restrict them by referrer/API in Google Cloud.
+      - key: VITE_GEMINI_API_KEY
+        sync: false
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false
