@@ -10,6 +10,11 @@ from crm.views.reminder_views import ReminderListView, RuleListView, ReminderDis
 from crm.views.ui_views import ClientFormSchemaView, ClaimFormSchemaView
 from crm.views.assistant_views import AssistantVoiceView
 from crm.views.i18n_views import TranslateView
+from crm.views.provider_views import (
+    ProviderSyncClientView, 
+    ProviderSubmitClaimView,
+    ProviderIntegrationLogView
+)
 
 urlpatterns = [
     # Clients
@@ -49,4 +54,13 @@ urlpatterns = [
     path('ui/schemas/client-form/', ClientFormSchemaView.as_view()),
     path('ui/schemas/claim-form', ClaimFormSchemaView.as_view()),
     path('ui/schemas/claim-form/', ClaimFormSchemaView.as_view()),
+
+    # Mock Provider API (Pass-Through Underwriting & Claims Intake)
+    path('providers/sync-client', ProviderSyncClientView.as_view()),
+    path('providers/sync-client/', ProviderSyncClientView.as_view()),
+    path('providers/submit-claim', ProviderSubmitClaimView.as_view()),
+    path('providers/submit-claim/', ProviderSubmitClaimView.as_view()),
+    path('providers/integration-log', ProviderIntegrationLogView.as_view()),
+    path('providers/integration-log/', ProviderIntegrationLogView.as_view()),
 ]
+

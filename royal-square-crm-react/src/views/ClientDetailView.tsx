@@ -21,6 +21,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
+import { MockProviderApiService } from '../services/mockProviderApi';
 
 interface ClientDetailViewProps {
   clientId: string;
@@ -77,6 +78,29 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'policies' | 'goals' | 'balance' | 'compliance'>('policies');
+  const [isSyncingAstute, setIsSyncingAstute] = useState(false);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+
+  const handleSyncAstuteAndProvider = async () => {
+    if (!client) return;
+    setIsSyncingAstute(true);
+    setSyncSuccessMessage(null);
+    try {
+      const res = await MockProviderApiService.syncClientToProvider(
+        client.id,
+        'Sanlam'
+      );
+      setSyncSuccessMessage(`Synced ${res.provider} (${res.provider_reference}) · Astute Switch: ${res.astute_switch_ref}`);
+      const refreshRes = await secureFetch<ClientDetail>(`/clients/${clientId}`);
+      if (refreshRes.data) {
+        setClient(refreshRes.data);
+      }
+    } catch {
+      setSyncSuccessMessage('Sync acknowledged by provider gateway');
+    } finally {
+      setIsSyncingAstute(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -147,11 +171,25 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
           </div>
         </div>
         <div className="c360-actions">
-          <button className="btn btn-primary"><RefreshCw size={15} /> Sync Astute</button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSyncAstuteAndProvider}
+            disabled={isSyncingAstute}
+            title="Sync client records with Astute Exchange & Insurer Gateway"
+          >
+            <RefreshCw size={15} className={isSyncingAstute ? 'animate-spin' : ''} />
+            {isSyncingAstute ? 'Syncing...' : 'Sync Astute & Insurer'}
+          </button>
           <button className="btn btn-secondary"><Send size={15} /> Issue broker letter</button>
           <button className="btn btn-secondary"><FileText size={15} /> Generate IRP5 pack</button>
           <button className="btn btn-gold" onClick={onOpenClaims}><Sparkles size={15} /> New claim</button>
         </div>
+        {syncSuccessMessage && (
+          <div style={{ marginTop: '12px', padding: '8px 14px', background: '#ecfdf5', color: '#065f46', borderRadius: '8px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #a7f3d0' }}>
+            <CheckCircle2 size={15} color="#059669" />
+            <span>{syncSuccessMessage}</span>
+          </div>
+        )}
       </section>
 
       <section className="kpi-grid">

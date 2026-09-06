@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { secureFetch } from '../services/api';
 import { LogClaimModal } from '../components/forms/LogClaimModal';
+import { IntegrationLogTable } from '../components/IntegrationLogTable';
 import { ChevronRight, CheckSquare, Square, Clock, FilePlus2, Mic } from 'lucide-react';
 
 interface SceneItem {
@@ -255,6 +256,12 @@ export const ClaimsPipelineView: React.FC<ClaimsPipelineViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Real-time Provider Integration Log Table */}
+      <IntegrationLogTable 
+        title="Provider Claims Integration Log"
+        subtitle="Live automated transmission feed — appends a row every time a claim is submitted to an insurer API"
+      />
 
       {/* Voice-Enabled Log Claim Modal */}
       <LogClaimModal

@@ -29,6 +29,7 @@ import { SmartTranscribeService, SmartTranscribeResult } from '../services/smart
 import { AccidentLocationMap, PinnedLocation } from '../components/maps/AccidentLocationMap';
 import { CalendarReminderService } from '../services/reminderService';
 import { secureFetch } from '../services/api';
+import { MockProviderApiService } from '../services/mockProviderApi';
 import { CURRENT_CLIENT_MOCK } from '../client/mockClientData';
 
 interface UploadedPhoto {
@@ -313,6 +314,19 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
         method: 'POST',
         body: JSON.stringify(claimPayload)
       });
+
+      // Transmit to mock provider integration log in real-time
+      try {
+        const pName = (client.insuredVehicle.insurer.includes('Old Mutual') ? 'Old Mutual' : client.insuredVehicle.insurer.includes('Discovery') ? 'Discovery' : client.insuredVehicle.insurer.includes('Sanlam') ? 'Sanlam' : 'Santam') as any;
+        await MockProviderApiService.submitClaimToProvider(undefined, pName, {
+          claim_id: generatedRef,
+          client_name: client.fullName,
+          client_reference: client.id,
+          policy_number: client.insuredVehicle.policyNumber
+        });
+      } catch (err) {
+        console.warn('Provider dispatch error', err);
+      }
 
       // ONLY schedule 48h reminder if police case number is NOT already provided!
       if (!hasCaseNumber) {
