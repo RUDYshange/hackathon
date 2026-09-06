@@ -2,7 +2,12 @@
 
 A modern, full-stack wealth management & advisory CRM built with **Django 5 + Django REST Framework** on a **Neon PostgreSQL** database (primary backend), an alternative **FastAPI + SQLite** implementation, and **React 18 + TypeScript** (frontend).
 
-The React app opens on an **accessible client portal** — a soft, high-contrast wealth dashboard designed for clients aged 60+ — with guided "Report Motor Accident" and "Report Loss / Theft" journeys. Two flagship inclusivity features are available on **every page**:
+The React app opens on a **landing page** where users sign in or sign up. On sign-up they choose to register as a **Customer** or a **Business**, which routes them into one of two workspaces:
+
+- **Customer → Client portal** — a soft, high-contrast wealth dashboard designed for clients aged 60+, with guided "Report Motor Accident" and "Report Loss / Theft" journeys.
+- **Business → Advisory console** — the institutional, staff-facing CRM (Client 360, claims pipeline, compliance & SLAs, product providers, reminders, onboarding, SDUI form engine).
+
+Two flagship inclusivity features are available on **every page** of both workspaces:
 
 - **Multilingual voice agent** — speak to the CRM in any South African language (Groq Whisper + a tool-calling agent).
 - **Whole-app translation** — a one-tap language switcher translates the entire interface into any of the **11 official SA languages**.
@@ -32,8 +37,10 @@ royal-square-crm/
 └── royal-square-crm-react/       # React 18 + TypeScript + Vite (Hardened Frontend)
     ├── index.html                # Loads Tailwind (CDN) for the client portal + Google fonts
     ├── src/
-    │   ├── App.tsx               # Client portal shell: dashboard + report flows + voice agent
+    │   ├── App.tsx               # Top-level router: landing → auth → client portal | advisor console
     │   ├── main.tsx              # Wraps <App/> in <I18nProvider/> (whole-app translation)
+    │   ├── auth/                 # LandingPage, AuthView (sign in / sign up), session helper
+    │   ├── advisor/              # AdvisorConsole — the institutional staff CRM workspace
     │   ├── i18n/                 # I18nProvider (auto-translates the UI) + 11 SA languages
     │   ├── client/               # Client-portal module (context, components, mock data, types)
     │   ├── components/
@@ -127,10 +134,39 @@ npm run dev
 
 ---
 
-## Accessible Client Portal (default UI)
+## Landing Page & Sign In / Sign Up
 
-The app opens on a client-facing wealth dashboard (`ClientDashboardView`) built
-for clarity and for clients aged 60+:
+The app opens on a dark, premium **landing page** (`src/auth/LandingPage.tsx`)
+that follows the "Enterprise Gateway" pattern — a clear *path selection* between
+the two audiences, with trust signals throughout. Its visual direction (dark
+navy + brand gold, IBM Plex Sans, standard entrance motion, accessible focus
+states) was generated with the
+[ui-ux-pro-max design skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
+*(Design guidance was applied and adapted for this project.)*
+
+- **Sign in** — email + password, with a Customer / Business selector.
+- **Sign up** — choose to register as a **Customer** or a **Business**, then set
+  up access. The choice determines which workspace you land in.
+
+```
+Landing → Sign in / Sign up
+   ├─ Customer  → Client portal   (src/views/ClientDashboardView.tsx)
+   └─ Business  → Advisory console (src/advisor/AdvisorConsole.tsx)
+```
+
+The chosen workspace is remembered on the device (localStorage) and restored on
+reload; a **Sign out** control in each workspace returns to the landing page.
+
+> The current auth is **front-end only** (`src/auth/session.ts`) — it validates
+> input and routes by role but does not verify credentials or store passwords.
+> Wire it to a real authentication backend before production.
+
+---
+
+## Accessible Client Portal (customer workspace)
+
+The customer workspace is a client-facing wealth dashboard (`ClientDashboardView`)
+built for clarity and for clients aged 60+:
 
 - **Comfort bar** — one-tap text scaling (A / A+ / A++), a high-contrast toggle,
   and the **language switcher** (all 11 SA languages), rendered with Tailwind.
@@ -146,9 +182,23 @@ Styling: the portal uses **Tailwind via CDN** (configured in `index.html`); the
 voice assistant and design-system components use the CSS tokens in
 `src/index.css`. Both stylesheets coexist.
 
-The institutional staff CRM views (Clients, Claims, Compliance, Providers,
-Reminders, Onboarding, SDUI form engine) remain in `src/views/` and can be
-re-mounted from `App.tsx` when a staff console is needed.
+The institutional staff CRM (Clients, Claims, Compliance, Providers, Reminders,
+Onboarding, SDUI form engine) is the **advisory console** — see below. Both
+workspaces are live and reachable from the landing page.
+
+---
+
+## Advisory Console (business workspace)
+
+Businesses/advisers land in `src/advisor/AdvisorConsole.tsx`, the institutional
+CRM with a left navigation rail:
+
+- **Dashboard (The Desk)**, **Clients & Portfolios** (Client 360), **Claims
+  Management** (pipeline + incident hub), **Compliance & SLAs**, **Reminders &
+  Reviews**, and **Product Providers**.
+- **Servicing** — client onboarding and the server-driven form engine.
+- The **voice agent** is docked here too, with full CRM tool-calling
+  (list/search clients, register/advance claims, dismiss reminders, etc.).
 
 ---
 

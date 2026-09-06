@@ -16,7 +16,8 @@ import {
   FileText,
   AlertCircle,
   Languages,
-  Loader2
+  Loader2,
+  LogOut
 } from 'lucide-react';
 
 import { useI18n } from '../i18n/I18nProvider';
@@ -43,7 +44,8 @@ type TextSize = 'base' | 'large' | 'xl';
 export const ClientDashboardView: React.FC<{ 
   onReportAccident: () => void;
   onReportLoss?: () => void;
-}> = ({ onReportAccident, onReportLoss }) => {
+  onSignOut?: () => void;
+}> = ({ onReportAccident, onReportLoss, onSignOut }) => {
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -160,6 +162,16 @@ export const ClientDashboardView: React.FC<{
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
               Live • FSP 29370
             </span>
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400"
+                title="Sign out"
+              >
+                <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
+                Sign out
+              </button>
+            )}
           </div>
         </div>
 

@@ -3806,3 +3806,33 @@ select.form-input { appearance: auto; }
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #10b981;
 }
+
+/* ==========================================================================
+   Advisor console — sign out button (ghost)
+   ========================================================================== */
+.crm-signout {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+  margin-left: 4px;
+}
+.crm-signout:hover:not(:disabled) {
+  color: var(--rose-text);
+  border-color: var(--rose-line);
+  background: var(--rose-soft);
+}
+
+/* ==========================================================================
+   Landing page — entrance motion (respects prefers-reduced-motion)
+   ========================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  .rsq-fade-up {
+    animation: rsq-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .rsq-fade-up.rsq-delay-1 { animation-delay: 0.12s; }
+  .rsq-fade-up.rsq-delay-2 { animation-delay: 0.24s; }
+}
+@keyframes rsq-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
