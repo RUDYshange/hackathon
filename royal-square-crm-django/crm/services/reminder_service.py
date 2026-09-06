@@ -5,14 +5,14 @@ from crm.rules.engine import ReminderEngine
 
 class ReminderService:
     @staticmethod
-    def get_open_reminders() -> List[Dict[str, Any]]:
-        clients = ClientRepository.get_all()
+    def get_open_reminders(scope=None) -> List[Dict[str, Any]]:
+        clients = ClientRepository.get_all(scope=scope)
         dismissed = ReminderRepository.get_dismissed_keys()
         return ReminderEngine.evaluate_all(clients, dismissed)
 
     @staticmethod
-    def get_rules_summary() -> List[Dict[str, Any]]:
-        reminders = ReminderService.get_open_reminders()
+    def get_rules_summary(scope=None) -> List[Dict[str, Any]]:
+        reminders = ReminderService.get_open_reminders(scope=scope)
         counts = {}
         for r in reminders:
             rule_key = r["key"].split(":")[0]

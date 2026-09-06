@@ -4,8 +4,11 @@ from crm.models import Claim, ClaimSceneItem, ClaimLogEntry
 
 class ClaimRepository:
     @staticmethod
-    def get_all():
-        return Claim.objects.select_related('client').prefetch_related('scene_items', 'logs').all()
+    def get_all(scope: Optional[dict] = None):
+        qs = Claim.objects.select_related('client').prefetch_related('scene_items', 'logs').all()
+        if scope is not None:
+            qs = qs.filter(**scope)
+        return qs
 
     @staticmethod
     def get_by_id(claim_id: str) -> Optional[Claim]:

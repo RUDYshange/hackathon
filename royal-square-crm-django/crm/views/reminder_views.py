@@ -2,15 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from crm.services.reminder_service import ReminderService
+from crm.services.scope import client_scope
 
 class ReminderListView(APIView):
     def get(self, request):
-        reminders = ReminderService.get_open_reminders()
+        reminders = ReminderService.get_open_reminders(scope=client_scope(request.user))
         return Response(reminders, status=status.HTTP_200_OK)
 
 class RuleListView(APIView):
     def get(self, request):
-        rules = ReminderService.get_rules_summary()
+        rules = ReminderService.get_rules_summary(scope=client_scope(request.user))
         return Response(rules, status=status.HTTP_200_OK)
 
 class ReminderDismissView(APIView):

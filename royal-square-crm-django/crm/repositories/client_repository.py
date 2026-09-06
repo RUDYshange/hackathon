@@ -5,8 +5,10 @@ from crm.models import Client, LedgerEntry, Goal, Policy, ComplianceDocument
 
 class ClientRepository:
     @staticmethod
-    def get_all(search: Optional[str] = None):
+    def get_all(search: Optional[str] = None, scope: Optional[dict] = None):
         qs = Client.objects.prefetch_related('ledger_entries', 'goals', 'policies', 'documents').all()
+        if scope is not None:
+            qs = qs.filter(**scope)
         if search:
             qs = qs.filter(
                 Q(first_name__icontains=search) |
@@ -18,9 +20,12 @@ class ClientRepository:
         return qs
 
     @staticmethod
-    def get_by_id(client_id: str) -> Optional[Client]:
+    def get_by_id(client_id: str, scope: Optional[dict] = None) -> Optional[Client]:
         try:
-            return Client.objects.prefetch_related('ledger_entries', 'goals', 'policies', 'documents').get(id=client_id)
+            qs = Client.objects.prefetch_related('ledger_entries', 'goals', 'policies', 'documents')
+            if scope is not None:
+                qs = qs.filter(**scope)
+            return qs.get(id=client_id)
         except (Client.DoesNotExist, ValueError):
             return None
 

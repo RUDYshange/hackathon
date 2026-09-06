@@ -20,6 +20,13 @@ SCENE_ITEMS = ["PHOTOS", "POLICE_REPORT", "WITNESS_DETAILS", "DAMAGE_ESTIMATE", 
 
 class Client(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # The business/advisory practice that owns this client record. Null = an
+    # unassigned client (e.g. a self-registered customer's own record). Advisory
+    # dashboards are scoped to the signed-in business's owned clients.
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        blank=True, null=True, related_name='owned_clients'
+    )
     reference = models.CharField(max_length=16, unique=True, db_index=True)
     title = models.CharField(max_length=10)
     first_name = models.CharField(max_length=60)

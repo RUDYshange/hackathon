@@ -178,6 +178,7 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
         <main className="crm-content">
           {activeTab === 'desk' && (
             <DeskView
+              advisorName={displayName}
               onOpenClients={() => go('clients')}
               onOpenClaims={() => handleOpenClaims(false)}
               onOpenReminders={() => go('reminders')}

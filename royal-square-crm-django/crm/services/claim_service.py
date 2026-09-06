@@ -40,8 +40,8 @@ class ClaimService:
         }
 
     @staticmethod
-    def list_claims() -> List[Dict[str, Any]]:
-        claims = ClaimRepository.get_all()
+    def list_claims(scope: Optional[dict] = None) -> List[Dict[str, Any]]:
+        claims = ClaimRepository.get_all(scope=scope)
         return [ClaimService.to_response(c) for c in claims]
 
     @staticmethod

@@ -167,13 +167,13 @@ class ClientService:
         }
 
     @staticmethod
-    def list_clients(search: Optional[str] = None) -> List[Dict[str, Any]]:
-        clients = ClientRepository.get_all(search)
+    def list_clients(search: Optional[str] = None, scope: Optional[dict] = None) -> List[Dict[str, Any]]:
+        clients = ClientRepository.get_all(search, scope=scope)
         return [ClientService.to_summary(c) for c in clients]
 
     @staticmethod
-    def get_client_detail(client_id: str) -> Optional[Dict[str, Any]]:
-        client = ClientRepository.get_by_id(client_id)
+    def get_client_detail(client_id: str, scope: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+        client = ClientRepository.get_by_id(client_id, scope=scope)
         if not client:
             return None
         return ClientService.to_detail(client)
@@ -199,7 +199,7 @@ class ClientService:
     }
 
     @staticmethod
-    def create_client(data: dict) -> Dict[str, Any]:
+    def create_client(data: dict, owner=None) -> Dict[str, Any]:
         mapped = {
             "title": data.get("title"),
             "first_name": data.get("firstName"),
@@ -216,12 +216,15 @@ class ClientService:
             "risk_profile": data.get("riskProfile", "MODERATE"),
             "risk_score": data.get("riskScore", 50)
         }
-        client = ClientRepository.create({k: v for k, v in mapped.items() if v is not None})
+        create_data = {k: v for k, v in mapped.items() if v is not None}
+        if owner is not None:
+            create_data["owner"] = owner
+        client = ClientRepository.create(create_data)
         return ClientService.to_detail(client)
 
     @classmethod
-    def update_client(cls, client_id: str, data: dict) -> Optional[Dict[str, Any]]:
-        client = ClientRepository.get_by_id(client_id)
+    def update_client(cls, client_id: str, data: dict, scope: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+        client = ClientRepository.get_by_id(client_id, scope=scope)
         if not client:
             return None
         mapped = {cls.FIELD_MAP[k]: v for k, v in data.items() if k in cls.FIELD_MAP}
@@ -229,8 +232,8 @@ class ClientService:
         return ClientService.to_detail(client)
 
     @staticmethod
-    def delete_client(client_id: str) -> bool:
-        client = ClientRepository.get_by_id(client_id)
+    def delete_client(client_id: str, scope: Optional[dict] = None) -> bool:
+        client = ClientRepository.get_by_id(client_id, scope=scope)
         if not client:
             return False
         ClientRepository.delete(client)

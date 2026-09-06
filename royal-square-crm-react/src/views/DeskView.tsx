@@ -20,6 +20,7 @@ import {
 import { secureFetch } from '../services/api';
 
 interface DeskViewProps {
+  advisorName?: string;
   onOpenClients: () => void;
   onOpenClaims: () => void;
   onOpenReminders: () => void;
@@ -89,6 +90,7 @@ const stageTone = (claim: ClaimSummary) => {
 };
 
 export const DeskView: React.FC<DeskViewProps> = ({
+  advisorName,
   onOpenClients,
   onOpenClaims,
   onOpenReminders,
@@ -157,7 +159,7 @@ export const DeskView: React.FC<DeskViewProps> = ({
             <span>· Cat I &amp; II discretionary ·</span>
             <span className="mono">FSP 29370</span>
           </div>
-          <h1>Welcome back, Qiniso Ntuli</h1>
+          <h1>Welcome back, {advisorName?.trim() || 'Qiniso Ntuli'}</h1>
           <p>Royal Square Financial (Pty) Ltd · Sandton Executive Suite &amp; Wealth Command Centre</p>
         </div>
         <div className="hero-actions">
@@ -350,6 +352,9 @@ export const DeskView: React.FC<DeskViewProps> = ({
               <TrendingUp size={19} color="#1d4ed8" />
             </div>
             <div className="kpi-grid">
+              {clients.length === 0 && (
+                <div className="empty-state">No clients onboarded yet — add your first client to start tracking goals.</div>
+              )}
               {clients.slice(0, 4).map((client) => {
                 const net = typeof client.netWorth === 'string' ? parseFloat(client.netWorth) : client.netWorth || 0;
                 const gapFree = (client.complianceGapCount || 0) === 0;
@@ -388,21 +393,29 @@ export const DeskView: React.FC<DeskViewProps> = ({
               </div>
               <PieChart size={19} color="#1d4ed8" />
             </div>
-            <Donut />
-            <div>
-              {PROVIDER_MIX.map((provider) => (
-                <div key={provider.name} className="legend-row">
-                  <span className="flex items-center gap-2">
-                    <span className="swatch" style={{ background: provider.colour }} />
-                    {provider.name}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="amt">{zar(stats.aum * provider.share, true)}</span>
-                    <span className="pct">{(provider.share * 100).toFixed(1)}%</span>
-                  </span>
+            {clients.length === 0 ? (
+              <div className="empty-state">
+                No product providers yet — onboard your first client to build the practice mix.
+              </div>
+            ) : (
+              <>
+                <Donut />
+                <div>
+                  {PROVIDER_MIX.map((provider) => (
+                    <div key={provider.name} className="legend-row">
+                      <span className="flex items-center gap-2">
+                        <span className="swatch" style={{ background: provider.colour }} />
+                        {provider.name}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="amt">{zar(stats.aum * provider.share, true)}</span>
+                        <span className="pct">{(provider.share * 100).toFixed(1)}%</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </section>
 
           <section className="crm-panel">

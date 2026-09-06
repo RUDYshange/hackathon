@@ -57,4 +57,12 @@ class Command(BaseCommand):
                 + (f" -> {d['client_ref']}" if d["client_ref"] else "") + ")"
             ))
 
+        # Assign the seeded practice register to the demo business so the
+        # existing advisor account shows its data (new businesses start empty).
+        advisor = User.objects.filter(username="advisor@royalsquare.co.za").first()
+        if advisor:
+            seeded_refs = ["CLI-1024", "CLI-1025", "CLI-1026", "CLI-1027", "CLI-1028"]
+            assigned = Client.objects.filter(reference__in=seeded_refs).update(owner=advisor)
+            self.stdout.write(self.style.SUCCESS(f"Assigned {assigned} seeded client(s) to the demo advisor."))
+
         self.stdout.write(self.style.SUCCESS("Demo auth accounts are ready."))

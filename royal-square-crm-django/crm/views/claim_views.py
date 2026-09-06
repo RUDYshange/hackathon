@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from crm.services.claim_service import ClaimService
+from crm.services.scope import client_scope
 from crm.serializers.claim_serializers import (
     RegisterClaimSerializer,
     UpdateClaimSerializer,
@@ -10,7 +11,10 @@ from crm.serializers.claim_serializers import (
 
 class ClaimListCreateView(APIView):
     def get(self, request):
-        claims = ClaimService.list_claims()
+        # Scope claims to the signed-in practice's own clients.
+        cscope = client_scope(request.user)
+        claim_scope = {f'client__{k}': v for k, v in cscope.items()}
+        claims = ClaimService.list_claims(scope=claim_scope)
         serializer = ClaimResponseSerializer(claims, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
