@@ -13,10 +13,12 @@ import {
   Check,
   Globe,
   Mic,
-  Accessibility
+  Accessibility,
+  Loader2
 } from 'lucide-react';
-import type { AccountRole } from './session';
-import { DEMO_ACCOUNTS, verifyCredentials, emailExists, registerAccount, findAccount } from './accounts';
+import type { AccountRole, AuthSession } from './session';
+import { DEMO_ACCOUNTS } from './accounts';
+import { register as apiRegister, login as apiLogin } from './authService';
 
 type Mode = 'signin' | 'signup';
 
@@ -24,16 +26,17 @@ interface AuthViewProps {
   initialMode: Mode;
   initialRole?: AccountRole;
   onBack: () => void;
-  onAuthenticated: (role: AccountRole, name: string, email: string) => void;
+  onAuthenticated: (session: AuthSession) => void;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Sign in / Sign up screen. Front-end only (no real auth backend yet) — it
- * validates inputs and hands the chosen role + identity back to <App/>, which
- * routes to the matching workspace. On the sign-up side the user chooses to
- * register as a Customer (client portal) or a Business (advisory console).
+ * Sign in / Sign up screen backed by the real Django auth API. It validates
+ * input, calls register/login, and hands the resulting session (token +
+ * account) to <App/>, which routes to the matching workspace. On the sign-up
+ * side the user chooses to register as a Customer (client portal) or a
+ * Business (advisory console).
  */
 export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, onBack, onAuthenticated }) => {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -44,10 +47,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isSignup = mode === 'signup';
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -55,49 +59,44 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
       setError('Please enter a valid email address.');
       return;
     }
-
+    if (password.length < 8) {
+      setError('Your password must be at least 8 characters.');
+      return;
+    }
     if (isSignup) {
       if (!name.trim()) {
         setError(role === 'business' ? 'Please enter your business or adviser name.' : 'Please enter your full name.');
-        return;
-      }
-      if (password.length < 8) {
-        setError('Your password must be at least 8 characters.');
         return;
       }
       if (password !== confirm) {
         setError("Those passwords don't match.");
         return;
       }
-      if (emailExists(email)) {
-        setError('An account with that email already exists — try signing in.');
-        return;
-      }
-      const displayName = name.trim();
-      registerAccount({ role, name: displayName, email: email.trim(), password });
-      onAuthenticated(role, displayName, email.trim());
-      return;
     }
 
-    // Sign in — verify against demo + locally registered accounts.
-    const acc = verifyCredentials(email, password);
-    if (acc) {
-      onAuthenticated(acc.role, acc.name, acc.email);
-      return;
+    setSubmitting(true);
+    const result = isSignup
+      ? await apiRegister(role, name.trim(), email.trim(), password)
+      : await apiLogin(email.trim(), password);
+    setSubmitting(false);
+
+    if (result.session) {
+      onAuthenticated(result.session);
+    } else {
+      setError(result.error || 'Something went wrong. Please try again.');
     }
-    setError(
-      findAccount(email)
-        ? 'Incorrect password. Please try again.'
-        : 'No account found for that email. Use a demo account below, or sign up.'
-    );
   };
 
-  const useDemo = (acc: (typeof DEMO_ACCOUNTS)[number]) => {
+  const useDemo = async (acc: (typeof DEMO_ACCOUNTS)[number]) => {
     setError(null);
     setEmail(acc.email);
     setPassword(acc.password);
     setRole(acc.role);
-    onAuthenticated(acc.role, acc.name, acc.email);
+    setSubmitting(true);
+    const result = await apiLogin(acc.email, acc.password);
+    setSubmitting(false);
+    if (result.session) onAuthenticated(result.session);
+    else setError(result.error || 'Could not sign in with the demo account.');
   };
 
   const switchMode = (next: Mode) => {
@@ -282,10 +281,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
 
             <button
               type="submit"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617] active:scale-[0.99]"
+              disabled={submitting}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSignup ? 'Create account' : 'Sign in'}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {submitting
+                ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {isSignup ? 'Creating account…' : 'Signing in…'}</>
+                : <>{isSignup ? 'Create account' : 'Sign in'} <ArrowRight className="h-4 w-4" aria-hidden="true" /></>}
             </button>
 
             <p className="text-center text-sm text-slate-400">
@@ -311,7 +312,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
                     key={a.email}
                     type="button"
                     onClick={() => useDemo(a)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                    disabled={submitting}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${a.role === 'business' ? 'bg-amber-400/15 text-amber-300' : 'bg-indigo-500/15 text-indigo-300'}`}>
                       {a.role === 'business' ? <Building2 className="h-4 w-4" aria-hidden="true" /> : <Users className="h-4 w-4" aria-hidden="true" />}

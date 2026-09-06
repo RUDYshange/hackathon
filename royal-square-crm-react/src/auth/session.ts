@@ -1,19 +1,19 @@
-// Lightweight front-end auth session.
+// Front-end auth session (token-based).
 //
-// This is a demo/hackathon session store — it does NOT perform real
-// authentication or store credentials. It only remembers which workspace the
-// user chose (client vs advisor) plus a display name/email, so the app can
-// route them and restore the choice on reload. Wire this to a real auth backend
-// before production.
+// The session now mirrors a real backend login: it holds the DRF auth token
+// plus the resolved account (role, name, email, and — for customers — the
+// linked client id). secureFetch attaches the token to every API request, and
+// the app restores the workspace on reload.
 
 export type AccountRole = 'customer' | 'business';
 
 export interface AuthSession {
+  token: string;
   role: AccountRole;
   name: string;
   email: string;
-  /** Epoch ms when the session was created. */
-  createdAt: number;
+  clientId?: string | null;
+  clientReference?: string | null;
 }
 
 const SESSION_KEY = 'rsq_auth_session';
@@ -23,7 +23,8 @@ export function loadSession(): AuthSession | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && (parsed.role === 'customer' || parsed.role === 'business')) {
+    // Require a token + valid role — this also discards any pre-token session.
+    if (parsed && parsed.token && (parsed.role === 'customer' || parsed.role === 'business')) {
       return parsed as AuthSession;
     }
     return null;
@@ -32,14 +33,13 @@ export function loadSession(): AuthSession | null {
   }
 }
 
-export function saveSession(session: Omit<AuthSession, 'createdAt'>): AuthSession {
-  const full: AuthSession = { ...session, createdAt: Date.now() };
+export function saveSession(session: AuthSession): AuthSession {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(full));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   } catch {
     /* storage unavailable — session stays in memory for this tab only */
   }
-  return full;
+  return session;
 }
 
 export function clearSession(): void {
@@ -48,4 +48,9 @@ export function clearSession(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Convenience for secureFetch: the current bearer token, if signed in. */
+export function getToken(): string | null {
+  return loadSession()?.token ?? null;
 }

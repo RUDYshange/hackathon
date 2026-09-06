@@ -154,12 +154,44 @@ Landing → Sign in / Sign up
    └─ Business  → Advisory console (src/advisor/AdvisorConsole.tsx)
 ```
 
-The chosen workspace is remembered on the device (localStorage) and restored on
-reload; a **Sign out** control in each workspace returns to the landing page.
+The chosen workspace is remembered on the device and restored on reload; a
+**Sign out** control in each workspace invalidates the token and returns to the
+landing page.
 
-> The current auth is **front-end only** (`src/auth/session.ts`) — it validates
-> input and routes by role but does not verify credentials or store passwords.
-> Wire it to a real authentication backend before production.
+### Authentication (database-backed)
+
+Auth is real and persisted in the database — Django users + DRF tokens, with an
+`Account` model linking each login to its role and (for customers) their
+`Client` record:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/register` | Create a user. For **customers** this also creates a **fresh Client** seeded only with the name/email given. |
+| `POST /api/auth/login` | Verify credentials, return `{ token, role, name, email, clientId }`. |
+| `GET /api/auth/me` | Resolve the current (token-authenticated) account. |
+| `POST /api/auth/logout` | Invalidate the caller's token. |
+
+- **New customer sign-up → fresh dashboard.** A new Client is created from the
+  details supplied, so the portal starts empty (R0 net worth, no goals) under
+  the user's own name — and the client immediately appears in the advisory
+  console's register.
+- **Existing user → their data.** Sign-in resolves the linked Client and the
+  portal renders that client's persisted figures.
+- The SPA stores the token (`src/auth/session.ts`) and `secureFetch` attaches
+  `Authorization: Token <key>` to every request. `GET /api/portal/overview`
+  requires authentication and is resolved per-user (never a shared default).
+
+Seed the shareable demo logins with:
+
+```bash
+cd royal-square-crm-django && ./venv/bin/python manage.py seed_auth
+```
+
+This creates `advisor@royalsquare.co.za` (business) and
+`client@royalsquare.co.za` (customer, linked to an existing populated client).
+
+> Single-practice model: all advisers see all clients (customers self-onboard
+> into the shared register). Multi-tenant practice isolation is a future step.
 
 ---
 

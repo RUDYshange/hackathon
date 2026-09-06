@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party apps
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     # Local apps
     'crm.apps.CrmConfig',
@@ -137,8 +138,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework Configuration (Secure Defaults)
 REST_FRAMEWORK = {
+    # Token auth for the SPA. Requests that carry "Authorization: Token <key>"
+    # are authenticated as their user; anonymous requests are still allowed
+    # except on endpoints that explicitly require authentication (e.g. portal).
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # Adjust to IsAuthenticated for protected endpoints
+        'rest_framework.permissions.AllowAny', # Per-view IsAuthenticated where needed
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',

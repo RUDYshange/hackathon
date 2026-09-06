@@ -1,4 +1,5 @@
 import { getCsrfToken, generateToken } from '../security/csrf';
+import { getToken } from '../auth/session';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -18,6 +19,10 @@ export async function secureFetch<T = any>(
   headers.set('Content-Type', 'application/json');
   headers.set('X-CSRF-Token', getCsrfToken());
   headers.set('X-Idempotency-Key', generateToken());
+
+  // Attach the DRF auth token when signed in.
+  const token = getToken();
+  if (token) headers.set('Authorization', `Token ${token}`);
 
   try {
     const response = await fetch(url, {

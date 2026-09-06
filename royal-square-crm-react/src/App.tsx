@@ -6,7 +6,8 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { AdvisorConsole } from './advisor/AdvisorConsole';
 import { LandingPage } from './auth/LandingPage';
 import { AuthView } from './auth/AuthView';
-import { loadSession, saveSession, clearSession, type AccountRole } from './auth/session';
+import { loadSession, saveSession, clearSession, type AccountRole, type AuthSession } from './auth/session';
+import { logout as apiLogout } from './auth/authService';
 
 type View = 'landing' | 'auth' | 'customer' | 'advisor';
 type CustomerPage = 'dashboard' | 'report-accident' | 'report-loss';
@@ -36,13 +37,14 @@ export function App() {
     setView('auth');
   };
 
-  const handleAuthenticated = (role: AccountRole, name: string, email: string) => {
-    setSession(saveSession({ role, name, email }));
+  const handleAuthenticated = (authSession: AuthSession) => {
+    setSession(saveSession(authSession));
     setCustomerPage('dashboard');
-    setView(workspaceFor(role));
+    setView(workspaceFor(authSession.role));
   };
 
   const handleSignOut = () => {
+    apiLogout(); // best-effort token invalidation on the server
     clearSession();
     setSession(null);
     setCustomerPage('dashboard');

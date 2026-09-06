@@ -11,8 +11,19 @@ from crm.views.ui_views import ClientFormSchemaView, ClaimFormSchemaView
 from crm.views.assistant_views import AssistantVoiceView
 from crm.views.i18n_views import TranslateView
 from crm.views.portal_views import PortalOverviewView
+from crm.views.auth_views import RegisterView, LoginView, MeView, LogoutView
 
 urlpatterns = [
+    # Authentication
+    path('auth/register', RegisterView.as_view()),
+    path('auth/register/', RegisterView.as_view()),
+    path('auth/login', LoginView.as_view()),
+    path('auth/login/', LoginView.as_view()),
+    path('auth/me', MeView.as_view()),
+    path('auth/me/', MeView.as_view()),
+    path('auth/logout', LogoutView.as_view()),
+    path('auth/logout/', LogoutView.as_view()),
+
     # Clients
     path('clients', ClientListCreateView.as_view()),
     path('clients/', ClientListCreateView.as_view()),

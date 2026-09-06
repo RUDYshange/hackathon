@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.conf import settings
 from django.core.validators import RegexValidator
 
 STAGE_CHOICES = [
@@ -181,3 +182,26 @@ class ReminderDismissal(models.Model):
 
     def __str__(self):
         return self.reminder_key
+
+
+ROLE_CHOICES = [
+    ("customer", "Customer"),
+    ("business", "Business"),
+]
+
+class Account(models.Model):
+    """Links a Django auth user to their role and, for customers, their Client
+    record. This is what makes the client portal per-user: the signed-in user's
+    dashboard is driven by `account.client`."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='account')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="customer")
+    display_name = models.CharField(max_length=120, blank=True, null=True)
+    # For customers: the wealth-management client record this login owns.
+    client = models.OneToOneField(
+        Client, on_delete=models.SET_NULL, blank=True, null=True, related_name='account'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email or self.user.username} ({self.role})"

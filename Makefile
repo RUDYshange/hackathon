@@ -70,9 +70,11 @@ migrate: ## Run Django database migrations
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py makemigrations crm
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py migrate
 
-seed: ## Seed SQLite database with realistic South African CRM records
+seed: ## Seed database with realistic South African CRM records + demo logins
 	@echo "==> Seeding database..."
 	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py seed_data
+	@echo "==> Seeding demo auth accounts..."
+	@cd $(PYTHON_DIR) && ./venv/bin/python manage.py seed_auth
 
 setup: install migrate seed ## Complete initial setup (install, migrate, seed)
 	@echo "==> Full setup completed successfully!"

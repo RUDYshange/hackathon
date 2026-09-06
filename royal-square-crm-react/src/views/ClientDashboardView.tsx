@@ -102,6 +102,8 @@ export const ClientDashboardView: React.FC<{
       if (!active) return;
       if (res.data) {
         setOverview(res.data);
+      } else if (res.status === 401) {
+        setError('Your session has expired. Please sign out and sign in again.');
       } else {
         setError(res.error || 'We could not load your portfolio right now.');
       }
