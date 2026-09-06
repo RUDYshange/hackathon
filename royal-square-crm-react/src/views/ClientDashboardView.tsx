@@ -21,16 +21,12 @@ import {
   UploadCloud,
   X,
   Check,
-  Users,
-  Send,
-  Terminal,
-  RefreshCw
+  Users
 } from 'lucide-react';
 
 import { useI18n } from '../i18n/I18nProvider';
 import { DocumentScannerService, IdScanResult } from '../services/documentScannerService';
 import { secureFetch } from '../services/api';
-import { MockProviderApiService, ProviderSyncResult } from '../services/mockProviderApi';
 
 interface Goal {
   id: string;
@@ -98,16 +94,6 @@ export const ClientDashboardView: React.FC<{
   const [scannedDocResult, setScannedDocResult] = useState<IdScanResult | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
-  // Mock Provider API State (Pass-Through Underwriting Sync)
-  const [isProviderSyncOpen, setIsProviderSyncOpen] = useState<boolean>(false);
-  const [selectedProvider, setSelectedProvider] = useState<'Sanlam' | 'Discovery' | 'Santam' | 'Old Mutual'>('Sanlam');
-  const [syncOccupation, setSyncOccupation] = useState<string>('');
-  const [syncEmployer, setSyncEmployer] = useState<string>('');
-  const [isSyncingWithProvider, setIsSyncingWithProvider] = useState<boolean>(false);
-  const [providerSyncResult, setProviderSyncResult] = useState<ProviderSyncResult | null>(null);
-  const [providerSyncLogs, setProviderSyncLogs] = useState<string[]>([]);
-  const [lastSyncedProviderRef, setLastSyncedProviderRef] = useState<string | null>(null);
-
   const [financialSummary, setFinancialSummary] = useState<FinancialSummaryState>({
     netWorth: 0,
     monthlyPremium: 0,
@@ -129,8 +115,6 @@ export const ClientDashboardView: React.FC<{
         const d = detailRes.data;
         setSelectedClientId(d.id);
         setClientName(d.fullName || 'Client');
-        setSyncOccupation(d.occupation || 'Chief Technology Officer');
-        setSyncEmployer(d.employer || 'Naspers Fintech');
 
         const subParts: string[] = [];
         if (d.reference) subParts.push(`Ref: ${d.reference}`);
@@ -357,57 +341,7 @@ export const ClientDashboardView: React.FC<{
     showToast(`Details updated to "${newName}" via official document verification!`);
   };
 
-  // Run pass-through underwriting sync with external insurer API (mocked)
-  const handleRunProviderSync = async () => {
-    setIsSyncingWithProvider(true);
-    setProviderSyncResult(null);
-    setProviderSyncLogs([
-      `[1/4] Normalizing ${clientName || 'Client'} record into canonical FAIS Section 8 schema...`
-    ]);
-
-    await new Promise((r) => setTimeout(r, 350));
-    setProviderSyncLogs((prev) => [
-      ...prev,
-      `[2/4] POST https://api.${selectedProvider.toLowerCase().replace(/\s+/g, '')}.co.za/v2/underwriting/sync`
-    ]);
-
-    await new Promise((r) => setTimeout(r, 350));
-    setProviderSyncLogs((prev) => [
-      ...prev,
-      `[3/4] Transmitting Astute exchange token & verified Luhn checksum...`
-    ]);
-
-    try {
-      const updatedFields: Record<string, any> = {};
-      if (syncOccupation) updatedFields.occupation = syncOccupation;
-      if (syncEmployer) updatedFields.employer = syncEmployer;
-
-      const result = await MockProviderApiService.syncClientToProvider(
-        selectedClientId || 'db5a9331-943e-46c1-8f4c-a85f3c75846a',
-        selectedProvider,
-        updatedFields
-      );
-
-      setProviderSyncResult(result);
-      setLastSyncedProviderRef(`${result.provider} (${result.provider_reference})`);
-      setProviderSyncLogs((prev) => [
-        ...prev,
-        `[4/4] 200 OK — Official Provider Ref: ${result.provider_reference}`,
-        `[SUCCESS] Provider exchange confirmed. Advisor CRM updated in real time!`
-      ]);
-
-      if (result.updated_client?.occupation || result.updated_client?.employer) {
-        setClientSubDetails(`Ref: ${result.updated_client.reference || 'CLI-1024'} • ${result.updated_client.occupation || syncOccupation} (${result.updated_client.employer || syncEmployer})`);
-      }
-      showToast(`Pass-Through Confirmed by ${selectedProvider}: ${result.provider_reference}`);
-    } catch (e: any) {
-      setProviderSyncLogs((prev) => [...prev, `[ERROR] Provider exchange error: ${e.message}`]);
-    } finally {
-      setIsSyncingWithProvider(false);
-    }
-  };
-
-  const textScaleClass = textSize === 'xl' ? 'text-[17px]' : textSize === 'large' ? 'text-[15.5px]' : 'text-[14px]';
+  const zoomFactor = textSize === 'xl' ? 1.25 : textSize === 'large' ? 1.12 : 1.0;
 
   const invPercent = financialSummary.netWorth > 0 
     ? Math.min(100, Math.round((financialSummary.investments / financialSummary.netWorth) * 100)) 
@@ -418,7 +352,103 @@ export const ClientDashboardView: React.FC<{
     : 0;
 
   return (
-    <div className={`${highContrast ? 'bg-white text-slate-900' : 'bg-slate-50/60 text-slate-800'} min-h-screen p-4 md:p-8 font-sans antialiased ${textScaleClass} transition-colors`}>
+    <div 
+      id="client-dashboard-root"
+      style={{ zoom: zoomFactor }}
+      className={`${highContrast ? 'high-contrast-mode bg-black text-white' : 'bg-slate-50/60 text-slate-800'} min-h-screen p-4 md:p-8 font-sans antialiased transition-all`}
+    >
+      <style>{`
+        ${textSize === 'xl' ? `
+          #client-dashboard-root { font-size: 19px !important; }
+          #client-dashboard-root .text-xs { font-size: 15px !important; line-height: 1.4 !important; }
+          #client-dashboard-root .text-sm { font-size: 17px !important; line-height: 1.45 !important; }
+          #client-dashboard-root .text-base { font-size: 19px !important; }
+          #client-dashboard-root .text-lg { font-size: 22px !important; }
+          #client-dashboard-root .text-2xl { font-size: 28px !important; }
+          #client-dashboard-root .text-3xl { font-size: 36px !important; }
+          #client-dashboard-root .text-4xl { font-size: 44px !important; }
+        ` : textSize === 'large' ? `
+          #client-dashboard-root { font-size: 17px !important; }
+          #client-dashboard-root .text-xs { font-size: 13.5px !important; line-height: 1.35 !important; }
+          #client-dashboard-root .text-sm { font-size: 15.5px !important; line-height: 1.4 !important; }
+          #client-dashboard-root .text-base { font-size: 17px !important; }
+          #client-dashboard-root .text-lg { font-size: 20px !important; }
+          #client-dashboard-root .text-2xl { font-size: 26px !important; }
+          #client-dashboard-root .text-3xl { font-size: 32px !important; }
+          #client-dashboard-root .text-4xl { font-size: 38px !important; }
+        ` : ''}
+
+        ${highContrast ? `
+          #client-dashboard-root.high-contrast-mode {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-white,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50,
+          #client-dashboard-root.high-contrast-mode .bg-slate-100,
+          #client-dashboard-root.high-contrast-mode .bg-indigo-50,
+          #client-dashboard-root.high-contrast-mode .bg-emerald-50,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50\\/70,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50\\/50 {
+            background-color: #050505 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode header,
+          #client-dashboard-root.high-contrast-mode .rounded-2xl,
+          #client-dashboard-root.high-contrast-mode .rounded-xl {
+            border: 2px solid #ffffff !important;
+            background-color: #000000 !important;
+          }
+          #client-dashboard-root.high-contrast-mode h1,
+          #client-dashboard-root.high-contrast-mode h2,
+          #client-dashboard-root.high-contrast-mode h3,
+          #client-dashboard-root.high-contrast-mode strong,
+          #client-dashboard-root.high-contrast-mode b {
+            color: #ffffff !important;
+            text-shadow: 0 0 1px #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode p,
+          #client-dashboard-root.high-contrast-mode span,
+          #client-dashboard-root.high-contrast-mode div {
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .text-slate-400,
+          #client-dashboard-root.high-contrast-mode .text-slate-500,
+          #client-dashboard-root.high-contrast-mode .text-slate-600,
+          #client-dashboard-root.high-contrast-mode .text-slate-700 {
+            color: #ffff00 !important;
+            font-weight: 600 !important;
+          }
+          #client-dashboard-root.high-contrast-mode a {
+            color: #38bdf8 !important;
+            text-decoration: underline !important;
+            font-weight: 700 !important;
+          }
+          #client-dashboard-root.high-contrast-mode button {
+            border: 2px solid #ffffff !important;
+            font-weight: 700 !important;
+          }
+          #client-dashboard-root.high-contrast-mode select {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode select option {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-slate-200,
+          #client-dashboard-root.high-contrast-mode .bg-slate-300 {
+            background-color: #222222 !important;
+            border: 1px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-indigo-600 {
+            background-color: #4f46e5 !important;
+            border: 1px solid #ffffff !important;
+          }
+        ` : ''}
+      `}</style>
       {/* Skip link for screen readers */}
       <a href="#main-dashboard" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-slate-900 text-white px-4 py-2 rounded-lg z-50">
         Skip to dashboard content
@@ -504,16 +534,6 @@ export const ClientDashboardView: React.FC<{
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
               Live • FSP 29370
             </span>
-            {onSwitchToAdvisor && (
-              <button
-                onClick={onSwitchToAdvisor}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-900 hover:bg-indigo-800 text-white shadow-xs transition cursor-pointer"
-                title="Switch to Advisor Console"
-              >
-                <Users className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
-                Advisor Console
-              </button>
-            )}
             {onSignOut && (
               <button
                 onClick={onSignOut}
@@ -554,12 +574,6 @@ export const ClientDashboardView: React.FC<{
                 <Mail className="w-3 h-3" aria-hidden="true" /> advice@royalsquare.co.za
               </a>
             </p>
-            {lastSyncedProviderRef && (
-              <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-full border border-emerald-200">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Insurer Gateway Synced: {lastSyncedProviderRef}</span>
-              </div>
-            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch md:items-center gap-3 shrink-0">
@@ -700,15 +714,13 @@ export const ClientDashboardView: React.FC<{
                 </span>
                 <span className="text-xs text-slate-400">Tap — we’ll email you within 24h</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mt-3">
-                {['Issue Border Letter', 'Request IRP5 Tax Pack', 'Change Details', 'Sync to Insurer (API)', 'Request Consultation'].map((task) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                {['Issue Border Letter', 'Request IRP5 Tax Pack', 'Change Details', 'Request Consultation'].map((task) => (
                   <button 
                     key={task} 
                     onClick={() => {
                       if (task === 'Change Details') {
                         setIsChangeDetailsOpen(true);
-                      } else if (task === 'Sync to Insurer (API)') {
-                        setIsProviderSyncOpen(true);
                       } else {
                         showToast(`${task} — request sent! Check your email.`);
                       }
@@ -716,8 +728,6 @@ export const ClientDashboardView: React.FC<{
                     className={`p-3.5 text-left border rounded-xl text-xs font-medium transition cursor-pointer min-h-[56px] flex flex-col justify-center gap-1 ${
                       task === 'Change Details' 
                         ? 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-100/60 hover:border-indigo-500 text-indigo-900 shadow-xs' 
-                        : task === 'Sync to Insurer (API)'
-                        ? 'border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100/80 hover:border-emerald-500 text-emerald-950 shadow-xs'
                         : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-700'
                     }`}
                     aria-label={task}
@@ -725,10 +735,9 @@ export const ClientDashboardView: React.FC<{
                     <span className="font-semibold leading-tight flex items-center justify-between">
                       {task}
                       {task === 'Change Details' && <Sparkles className="w-3 h-3 text-indigo-600" />}
-                      {task === 'Sync to Insurer (API)' && <Send className="w-3 h-3 text-emerald-600" />}
                     </span>
                     <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      {task === 'Change Details' ? 'Upload doc' : task === 'Sync to Insurer (API)' ? 'Mock API Gateway' : 'One tap'} <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                      {task === 'Change Details' ? 'Upload doc' : 'One tap'} <ChevronRight className="w-3 h-3" aria-hidden="true" />
                     </span>
                   </button>
                 ))}
@@ -987,181 +996,6 @@ export const ClientDashboardView: React.FC<{
               >
                 <Check size={16} />
                 <span>Confirm & Update Information</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Insurer Gateway & Advisor Sync Modal (Mock API Demo) */}
-      {isProviderSyncOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="provider-sync-modal-title"
-        >
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
-                  <Send className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 id="provider-sync-modal-title" className="text-base font-bold text-slate-900">
-                    Insurer API Gateway & Advisor Sync
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Normalized data schema pass-through across SA insurers (Sanlam, Old Mutual, Discovery, Santam)
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsProviderSyncOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
-                aria-label="Close modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Explanatory callout for judges */}
-            <div className="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs text-indigo-900 space-y-1">
-              <span className="font-bold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                Why Mocking with Normalized Schemas Solves the Core Problem:
-              </span>
-              <p className="text-indigo-800">
-                Insurers have divergent legal interpretations and form lengths ranging from 4 to 98 pages. Our internal canonical schema standardizes all client data first, then dispatches to insurer endpoints while synchronizing the database across client and advisor consoles in real time.
-              </p>
-            </div>
-
-            {/* Provider and fields to update */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Select Target Insurer
-                  </label>
-                  <select
-                    value={selectedProvider}
-                    onChange={(e) => setSelectedProvider(e.target.value as 'Sanlam' | 'Discovery' | 'Santam' | 'Old Mutual')}
-                    className="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                  >
-                    <option value="Sanlam">Sanlam (Glacier / Underwriting API)</option>
-                    <option value="Discovery">Discovery (Vitality & Life Gateway)</option>
-                    <option value="Old Mutual">Old Mutual (Wealth / SuperFund)</option>
-                    <option value="Santam">Santam (Commercial & Personal Short-Term)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Client from Database
-                  </label>
-                  <div className="p-2.5 bg-slate-100 rounded-lg text-xs font-semibold text-slate-800 border border-slate-200 truncate">
-                    {clientName || 'Sipho Dlamini'} ({selectedClientId ? 'Linked in DB' : 'CLI-1024'})
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Update Occupation (synced to DB)
-                  </label>
-                  <input
-                    type="text"
-                    value={syncOccupation}
-                    onChange={(e) => setSyncOccupation(e.target.value)}
-                    placeholder="e.g. Senior Mine Specialist"
-                    className="w-full text-xs border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Update Employer (synced to DB)
-                  </label>
-                  <input
-                    type="text"
-                    value={syncEmployer}
-                    onChange={(e) => setSyncEmployer(e.target.value)}
-                    placeholder="e.g. Anglo American SA"
-                    className="w-full text-xs border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Simulation Terminal / Logs */}
-              {providerSyncLogs.length > 0 && (
-                <div className="bg-slate-950 text-emerald-400 p-3 rounded-xl font-mono text-[11px] space-y-1 max-h-36 overflow-y-auto border border-slate-800 shadow-inner">
-                  <div className="flex items-center gap-1.5 text-slate-400 font-bold border-b border-slate-800 pb-1 mb-1">
-                    <Terminal className="w-3 h-3 text-emerald-400" />
-                    <span>API Gateway Transmission Stream</span>
-                  </div>
-                  {providerSyncLogs.map((log, i) => (
-                    <div key={i} className="leading-relaxed">
-                      {log}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Receipt card if synced */}
-              {providerSyncResult && (
-                <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between font-bold text-emerald-900">
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Provider Acknowledgment Received
-                    </span>
-                    <span className="font-mono bg-emerald-200/80 px-2 py-0.5 rounded text-[11px] text-emerald-800">
-                      {providerSyncResult.provider_reference}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1 text-slate-600 text-[11px]">
-                    <div>
-                      <span className="font-semibold text-slate-500 block">Astute Switch Token:</span>
-                      <span className="font-mono text-slate-800">{providerSyncResult.astute_switch_ref}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-500 block">Compliance Gate:</span>
-                      <span className="text-slate-800">{providerSyncResult.compliance_gate}</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-emerald-700 font-medium pt-1">
-                    ✓ Updated database record for client and broadcast to Advisor Back-Office.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsProviderSyncOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={handleRunProviderSync}
-                disabled={isSyncingWithProvider}
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-sm transition cursor-pointer"
-              >
-                {isSyncingWithProvider ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Transmitting to Gateway...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Send to Insurer API Gateway (Mock)</span>
-                  </>
-                )}
               </button>
             </div>
           </div>
