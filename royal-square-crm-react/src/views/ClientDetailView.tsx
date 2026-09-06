@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
 import { MockProviderApiService } from '../services/mockProviderApi';
+import { ProviderSyncModal } from '../components/ProviderSyncModal';
 
 interface ClientDetailViewProps {
   clientId: string;
@@ -103,6 +104,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
   const [tab, setTab] = useState<'policies' | 'goals' | 'balance' | 'compliance'>('policies');
   const [isSyncingAstute, setIsSyncingAstute] = useState(false);
   const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
+  const [isProviderSyncModalOpen, setIsProviderSyncModalOpen] = useState(false);
 
   const handleSyncAstuteAndProvider = async () => {
     if (!client) return;
@@ -272,12 +274,19 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
           <button className="btn btn-primary" onClick={openEdit}><Pencil size={15} /> Edit client</button>
           <button
             className="btn btn-secondary"
+            onClick={() => setIsProviderSyncModalOpen(true)}
+            title="Open Insurer API Gateway & Pass-Through Underwriting (Mock)"
+          >
+            <Send size={15} /> Sync to Insurer (API)
+          </button>
+          <button
+            className="btn btn-secondary"
             onClick={handleSyncAstuteAndProvider}
             disabled={isSyncingAstute}
             title="Sync client records with Astute Exchange & Insurer Gateway"
           >
             <RefreshCw size={15} className={isSyncingAstute ? 'animate-spin' : ''} />
-            {isSyncingAstute ? 'Syncing...' : 'Sync Astute & Insurer'}
+            {isSyncingAstute ? 'Syncing...' : 'Sync Astute Feed'}
           </button>
           <button className="btn btn-secondary"><Send size={15} /> Issue broker letter</button>
           <button className="btn btn-gold" onClick={onOpenClaims}><Sparkles size={15} /> New claim</button>
@@ -573,6 +582,20 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({ clientId, on
           </div>
         </div>
       )}
+
+      <ProviderSyncModal
+        isOpen={isProviderSyncModalOpen}
+        onClose={() => setIsProviderSyncModalOpen(false)}
+        clientId={client.id}
+        clientName={client.fullName}
+        onSyncSuccess={async (res) => {
+          setSyncSuccessMessage(`Synced ${res.provider} (${res.provider_reference}) · Astute: ${res.astute_switch_ref}`);
+          const refreshRes = await secureFetch<ClientDetail>(`/clients/${clientId}`);
+          if (refreshRes.data) {
+            setClient(refreshRes.data);
+          }
+        }}
+      />
     </div>
   );
 };

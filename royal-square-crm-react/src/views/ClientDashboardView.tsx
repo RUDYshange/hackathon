@@ -125,10 +125,107 @@ export const ClientDashboardView: React.FC<{
     setTimeout(() => setToast(null), 3000);
   };
 
-  const textScaleClass = textSize === 'xl' ? 'text-[17px]' : textSize === 'large' ? 'text-[15.5px]' : 'text-[14px]';
+  // Zoom-based scaling scales the whole dashboard reliably (better for 60+).
+  const zoomFactor = textSize === 'xl' ? 1.25 : textSize === 'large' ? 1.12 : 1.0;
 
   return (
-    <div className={`${highContrast ? 'bg-white text-slate-900' : 'bg-slate-50/60 text-slate-800'} min-h-screen p-4 md:p-8 font-sans antialiased ${textScaleClass} transition-colors`}>
+    <div
+      id="client-dashboard-root"
+      style={{ zoom: zoomFactor }}
+      className={`${highContrast ? 'high-contrast-mode bg-black text-white' : 'bg-slate-50/60 text-slate-800'} min-h-screen p-4 md:p-8 font-sans antialiased transition-all`}
+    >
+      <style>{`
+        ${textSize === 'xl' ? `
+          #client-dashboard-root { font-size: 19px !important; }
+          #client-dashboard-root .text-xs { font-size: 15px !important; line-height: 1.4 !important; }
+          #client-dashboard-root .text-sm { font-size: 17px !important; line-height: 1.45 !important; }
+          #client-dashboard-root .text-base { font-size: 19px !important; }
+          #client-dashboard-root .text-lg { font-size: 22px !important; }
+          #client-dashboard-root .text-2xl { font-size: 28px !important; }
+          #client-dashboard-root .text-3xl { font-size: 36px !important; }
+          #client-dashboard-root .text-4xl { font-size: 44px !important; }
+        ` : textSize === 'large' ? `
+          #client-dashboard-root { font-size: 17px !important; }
+          #client-dashboard-root .text-xs { font-size: 13.5px !important; line-height: 1.35 !important; }
+          #client-dashboard-root .text-sm { font-size: 15.5px !important; line-height: 1.4 !important; }
+          #client-dashboard-root .text-base { font-size: 17px !important; }
+          #client-dashboard-root .text-lg { font-size: 20px !important; }
+          #client-dashboard-root .text-2xl { font-size: 26px !important; }
+          #client-dashboard-root .text-3xl { font-size: 32px !important; }
+          #client-dashboard-root .text-4xl { font-size: 38px !important; }
+        ` : ''}
+
+        ${highContrast ? `
+          #client-dashboard-root.high-contrast-mode {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-white,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50,
+          #client-dashboard-root.high-contrast-mode .bg-slate-100,
+          #client-dashboard-root.high-contrast-mode .bg-indigo-50,
+          #client-dashboard-root.high-contrast-mode .bg-emerald-50,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50\\/70,
+          #client-dashboard-root.high-contrast-mode .bg-slate-50\\/50 {
+            background-color: #050505 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode header,
+          #client-dashboard-root.high-contrast-mode .rounded-2xl,
+          #client-dashboard-root.high-contrast-mode .rounded-xl {
+            border: 2px solid #ffffff !important;
+            background-color: #000000 !important;
+          }
+          #client-dashboard-root.high-contrast-mode h1,
+          #client-dashboard-root.high-contrast-mode h2,
+          #client-dashboard-root.high-contrast-mode h3,
+          #client-dashboard-root.high-contrast-mode strong,
+          #client-dashboard-root.high-contrast-mode b {
+            color: #ffffff !important;
+            text-shadow: 0 0 1px #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode p,
+          #client-dashboard-root.high-contrast-mode span,
+          #client-dashboard-root.high-contrast-mode div {
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .text-slate-400,
+          #client-dashboard-root.high-contrast-mode .text-slate-500,
+          #client-dashboard-root.high-contrast-mode .text-slate-600,
+          #client-dashboard-root.high-contrast-mode .text-slate-700 {
+            color: #ffff00 !important;
+            font-weight: 600 !important;
+          }
+          #client-dashboard-root.high-contrast-mode a {
+            color: #38bdf8 !important;
+            text-decoration: underline !important;
+            font-weight: 700 !important;
+          }
+          #client-dashboard-root.high-contrast-mode button {
+            border: 2px solid #ffffff !important;
+            font-weight: 700 !important;
+          }
+          #client-dashboard-root.high-contrast-mode select {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode select option {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-slate-200,
+          #client-dashboard-root.high-contrast-mode .bg-slate-300 {
+            background-color: #222222 !important;
+            border: 1px solid #ffffff !important;
+          }
+          #client-dashboard-root.high-contrast-mode .bg-indigo-600 {
+            background-color: #4f46e5 !important;
+            border: 1px solid #ffffff !important;
+          }
+        ` : ''}
+      `}</style>
       {/* Skip link for screen readers */}
       <a href="#main-dashboard" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-slate-900 text-white px-4 py-2 rounded-lg z-50">
         Skip to dashboard content

@@ -26,8 +26,10 @@ import {
   ChevronDown,
   Settings,
   LogOut,
-  ArrowLeft
+  ArrowLeft,
+  Send
 } from 'lucide-react';
+import { ProviderSyncModal } from '../components/ProviderSyncModal';
 
 type ActiveTab =
   | 'desk'
@@ -61,6 +63,7 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
   const [openLogClaimDirectly, setOpenLogClaimDirectly] = useState<boolean>(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
+  const [isProviderSyncOpen, setIsProviderSyncOpen] = useState<boolean>(false);
 
   const go = (tab: ActiveTab) => {
     setActiveTab(tab);
@@ -158,6 +161,14 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
               <ArrowLeft size={15} /> Client Portal
             </button>
           )}
+          <button 
+            className="btn btn-secondary"
+            style={{ borderColor: '#10b981', color: '#047857', background: '#ecfdf5', fontWeight: 600 }}
+            onClick={() => setIsProviderSyncOpen(true)}
+            title="Open Insurer API Gateway & Pass-Through Underwriting (Mock)"
+          >
+            <Send size={15} /> Sync to Insurer (API)
+          </button>
           <button className="btn btn-secondary" onClick={() => handleOpenClaims(true)}><ClipboardPlus size={15} /> Register claim</button>
           <button className="btn btn-primary" onClick={() => go('new-client')}><UserPlus size={15} /> New client</button>
           <div className="adviser-card" style={{ border: 'none', padding: '0 0 0 8px' }}>
@@ -235,6 +246,11 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
       </div>
 
       <VoiceAssistant />
+
+      <ProviderSyncModal
+        isOpen={isProviderSyncOpen}
+        onClose={() => setIsProviderSyncOpen(false)}
+      />
     </div>
   );
 };
