@@ -24,6 +24,7 @@ import {
 
 import { useI18n } from '../i18n/I18nProvider';
 import { secureFetch } from '../services/api';
+import { ClientChangeDetailsModal } from '../components/forms/ClientChangeDetailsModal';
 
 interface Goal {
   id: string;
@@ -87,6 +88,7 @@ export const ClientDashboardView: React.FC<{
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [isChangeDetailsOpen, setIsChangeDetailsOpen] = useState(false);
 
   // Whole-app language switching (all 11 SA official languages).
   const { code: langCode, languages, setLanguage, translating } = useI18n();
@@ -365,11 +367,11 @@ export const ClientDashboardView: React.FC<{
             )}
             <button 
               onClick={onReportAccident}
-              aria-label="Report a motor accident"
+              aria-label="Register a claim or report motor accident"
               className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
             >
               <Car className="w-4 h-4" aria-hidden="true" />
-              <span>Report Motor Accident</span>
+              <span>Register Claim / Motor Accident</span>
               <ChevronRight className="w-4 h-4 opacity-70" aria-hidden="true" />
             </button>
             {onReportLoss && (
@@ -504,15 +506,30 @@ export const ClientDashboardView: React.FC<{
                 <span className="text-xs text-slate-400">Tap — we’ll email you within 24h</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                {['Issue Border Letter', 'Request IRP5 Tax Pack', 'Change Banking Details', 'Request Consultation'].map((task) => (
+                {['Issue Border Letter', 'Request IRP5 Tax Pack', 'Change Details', 'Request Consultation'].map((task) => (
                   <button 
                     key={task} 
-                    onClick={() => showToast(`${task} — request sent! Check your email.`)}
-                    className="p-3.5 text-left border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded-xl text-xs font-medium text-slate-700 transition cursor-pointer min-h-[56px] flex flex-col justify-center gap-1"
+                    onClick={() => {
+                      if (task === 'Change Details') {
+                        setIsChangeDetailsOpen(true);
+                      } else {
+                        showToast(`${task} — request sent! Check your email.`);
+                      }
+                    }}
+                    className={`p-3.5 text-left border rounded-xl text-xs font-medium transition cursor-pointer min-h-[56px] flex flex-col justify-center gap-1 ${
+                      task === 'Change Details'
+                        ? 'border-indigo-300 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100 hover:border-indigo-400 font-bold'
+                        : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-700'
+                    }`}
                     aria-label={task}
                   >
-                    <span className="font-semibold leading-tight">{task}</span>
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">One tap <ChevronRight className="w-3 h-3" aria-hidden="true" /></span>
+                    <span className="font-semibold leading-tight flex items-center justify-between">
+                      {task}
+                      {task === 'Change Details' && <Sparkles className="w-3 h-3 text-indigo-600" />}
+                    </span>
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                      {task === 'Change Details' ? 'Upload proof & extract' : 'One tap'} <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                    </span>
                   </button>
                 ))}
               </div>
@@ -675,6 +692,13 @@ export const ClientDashboardView: React.FC<{
           </div>
         )}
       </div>
+
+      {/* Change Details & Document Verification Modal */}
+      <ClientChangeDetailsModal
+        isOpen={isChangeDetailsOpen}
+        onClose={() => setIsChangeDetailsOpen(false)}
+        onSuccess={(msg) => showToast(msg)}
+      />
     </div>
   );
 };

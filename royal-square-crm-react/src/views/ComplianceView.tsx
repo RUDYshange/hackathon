@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   BadgeCheck,
   Building2,
-  Clock,
   FileSignature,
   Gavel,
   Printer,
@@ -11,14 +10,42 @@ import {
   Send,
   ShieldAlert,
   ShieldCheck,
-  Wallet
+  Wallet,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
+import { ClientChangeRequest } from '../components/forms/ClientChangeDetailsModal';
 
 interface ClientSummary {
   id: string; reference: string; fullName: string; netWorth: number | string;
   riskProfile: string; complianceGapCount: number; nextReviewDate?: string; daysUntilReview?: number;
 }
+
+const DEFAULT_DEMO_CHANGE_REQUESTS: ClientChangeRequest[] = [
+  {
+    id: 'cr-init-1',
+    reference: 'CR-84920',
+    clientName: 'Kagiso Mokoena',
+    clientRef: 'CLI-1026',
+    category: 'BANKING',
+    submittedAt: 'Today, 08:05',
+    status: 'PENDING_ADVISOR_REVIEW',
+    documentName: 'Standard_Bank_Stamped_Confirmation_2026.pdf',
+    documentCategory: 'BANKING',
+    extractedFields: {
+      bankName: 'Standard Bank of South Africa',
+      accountHolder: 'Kagiso Mokoena',
+      accountNumber: '10194820194',
+      branchCode: '051001',
+      accountType: 'Private Wealth Cheque Account',
+      issueDate: '2026-08-28'
+    },
+    targetProviders: ['Santam Insurance', 'Allan Gray', 'Discovery Invest & Insure'],
+    clientNotes: 'Updated primary business settlement account. Stamped confirmation letter from Rosebank branch attached.'
+  }
+];
 
 const MANDATE_MODELS = [
   { key: 'commission', label: 'Commission', body: 'Statutory regulated scale', detail: 'Life and risk commission determined strictly by product provider scale under the Long-Term Insurance Act, 1998. Investment advisory commission is capped at 3.00% ex VAT by internal governance rule.' },
@@ -39,6 +66,24 @@ export const ComplianceView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [model, setModel] = useState('commission');
 
+  // Client Change Requests state
+  const [changeRequests, setChangeRequests] = useState<ClientChangeRequest[]>(() => {
+    try {
+      const stored = localStorage.getItem('rs_client_change_requests');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // fallback
+    }
+    return DEFAULT_DEMO_CHANGE_REQUESTS;
+  });
+
+  const [reqFilter, setReqFilter] = useState<'ALL' | 'PENDING' | 'DISPATCHED'>('ALL');
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [dispatchLogs, setDispatchLogs] = useState<Record<string, string>>({});
+
   useEffect(() => {
     (async () => {
       const res = await secureFetch<ClientSummary[]>('/clients');
@@ -46,6 +91,47 @@ export const ComplianceView: React.FC = () => {
       setIsLoading(false);
     })();
   }, []);
+
+  // Listen to storage events if client submits a change request in another tab
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'rs_client_change_requests' && e.newValue) {
+        try {
+          setChangeRequests(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const handleDispatchToProviders = async (req: ClientChangeRequest) => {
+    setDispatchingId(req.id);
+    await new Promise((resolve) => setTimeout(resolve, 1400));
+
+    const updated = changeRequests.map((r) =>
+      r.id === req.id ? { ...r, status: 'SENT_TO_PROVIDERS' as const } : r
+    );
+    setChangeRequests(updated);
+    try {
+      localStorage.setItem('rs_client_change_requests', JSON.stringify(updated));
+    } catch {}
+
+    const confirmationRef = `B2B-FICA-${Math.floor(100000 + Math.random() * 900000)}`;
+    setDispatchLogs((prev) => ({
+      ...prev,
+      [req.id]: `Dispatched to ${req.targetProviders.join(', ')} via FICA B2B Gateway (Ref: ${confirmationRef}) on ${new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}`
+    }));
+    setDispatchingId(null);
+  };
+
+  const filteredRequests = useMemo(() => {
+    if (reqFilter === 'PENDING') return changeRequests.filter((r) => r.status === 'PENDING_ADVISOR_REVIEW');
+    if (reqFilter === 'DISPATCHED') return changeRequests.filter((r) => r.status === 'SENT_TO_PROVIDERS');
+    return changeRequests;
+  }, [changeRequests, reqFilter]);
+
+  const pendingCount = changeRequests.filter((r) => r.status === 'PENDING_ADVISOR_REVIEW').length;
 
   const stats = useMemo(() => {
     const signed = clients.filter((c) => (c.complianceGapCount || 0) === 0).length;
@@ -87,20 +173,177 @@ export const ComplianceView: React.FC = () => {
           </div>
         </article>
         <article className="kpi-card">
+          <div className="kpi-top"><span className="kpi-label">FICA Change Requests</span><ShieldAlert size={17} color={pendingCount > 0 ? '#d97706' : '#1d4ed8'} /></div>
+          <div className="kpi-value">{pendingCount} <small>pending review</small></div>
+          <div className="kpi-foot">
+            <span style={{ color: pendingCount > 0 ? '#b45309' : undefined }}>
+              {pendingCount > 0 ? `${pendingCount} verified AI extractions awaiting provider dispatch` : 'All client change requests dispatched'}
+            </span>
+          </div>
+        </article>
+        <article className="kpi-card">
           <div className="kpi-top"><span className="kpi-label">Monthly retainers</span><Wallet size={17} color="#1d4ed8" /></div>
           <div className="kpi-value">{zar(stats.retainer)}</div>
           <div className="kpi-foot"><span>{stats.total} mandated debit orders · annual run rate {zar(stats.retainer * 12, true)} ex VAT</span></div>
-        </article>
-        <article className="kpi-card">
-          <div className="kpi-top"><span className="kpi-label">Hourly advisory time</span><Clock size={17} color="#1d4ed8" /></div>
-          <div className="kpi-value">42 <small>hrs this month</small></div>
-          <div className="kpi-foot"><span>Billed at R 1,500 ex VAT = R 63,000 booked · max cap 60 hrs/mo</span></div>
         </article>
         <article className="kpi-card">
           <div className="kpi-top"><span className="kpi-label">Astute authorities</span><ShieldCheck size={17} color="#1d4ed8" /></div>
           <div className="kpi-value">{stats.total} <small>active</small></div>
           <div className="kpi-foot"><span style={{ color: stats.expiring ? '#991b1b' : undefined }}>{stats.expiring} expiring in ≤ 30 days · 12-month electronic mandates on file</span></div>
         </article>
+      </section>
+
+      {/* PENDING CLIENT DETAIL CHANGES & FICA AMENDMENTS PANEL */}
+      <section className="crm-panel" style={{ marginBottom: 24 }}>
+        <div className="panel-heading" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>AI Document Vision</span>
+              <span className="tag" style={{ background: '#fef3c7', color: '#92400e' }}>Provider B2B Dispatch</span>
+            </div>
+            <h2 style={{ marginTop: 4 }}>Client Change Requests &amp; FICA Amendment Queue</h2>
+            <p>
+              Client-initiated changes with multimodal document extractions (Bank Confirmation Letters, Utility Bills, Smart IDs). Review verified data and dispatch statutory amendments directly to nominated product providers.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['ALL', 'PENDING', 'DISPATCHED'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`tab-btn ${reqFilter === tab ? 'active' : ''}`}
+                style={{ fontSize: 12, padding: '6px 14px' }}
+                onClick={() => setReqFilter(tab)}
+              >
+                {tab === 'ALL' ? `All Requests (${changeRequests.length})` : tab === 'PENDING' ? `Pending Review (${pendingCount})` : `Dispatched (${changeRequests.length - pendingCount})`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {filteredRequests.map((req) => {
+            const isPending = req.status === 'PENDING_ADVISOR_REVIEW';
+            const isBusy = dispatchingId === req.id;
+            const logMessage = dispatchLogs[req.id];
+
+            return (
+              <div
+                key={req.id}
+                style={{
+                  border: isPending ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                  background: isPending ? '#fffbeb' : '#ffffff',
+                  borderRadius: 14,
+                  padding: 18,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <strong style={{ fontSize: 15, color: '#0f172a' }}>{req.clientName}</strong>
+                      <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>({req.clientRef})</span>
+                      <span className="pill-badge badge-info" style={{ fontWeight: 600 }}>
+                        {req.category === 'BANKING' ? '🏦 Banking Details' : req.category === 'ADDRESS' ? '📍 Residential Address' : req.category === 'IDENTITY' ? '🪪 Identity / KYC' : '💼 Employment'}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>Submitted: {req.submittedAt}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
+                      Ref: <strong style={{ fontFamily: 'monospace' }}>{req.reference}</strong> · Supporting Document: <span style={{ textDecoration: 'underline', color: '#1e40af' }}>{req.documentName}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    {isPending ? (
+                      <span className="pill-badge compliance-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <AlertTriangle size={12} /> Pending Advisor Dispatch
+                      </span>
+                    ) : (
+                      <span className="pill-badge compliance-ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle2 size={12} /> Dispatched to Providers
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Extracted Fields Matrix */}
+                <div
+                  style={{
+                    marginTop: 12,
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 10,
+                    padding: 12,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: 10
+                  }}
+                >
+                  {Object.entries(req.extractedFields).map(([k, v]) => (
+                    <div key={k}>
+                      <span style={{ fontSize: 10, textTransform: 'uppercase', color: '#64748b', fontWeight: 600, display: 'block' }}>
+                        {k.replace(/([A-Z])/g, ' $1')}
+                      </span>
+                      <strong style={{ fontSize: 12, color: '#0f172a', wordBreak: 'break-word' }}>
+                        {String(v ?? '—')}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+
+                {req.clientNotes && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#475569', background: '#f8fafc', padding: '8px 12px', borderRadius: 8 }}>
+                    <strong>Client Note:</strong> "{req.clientNotes}"
+                  </div>
+                )}
+
+                {/* Target Product Providers */}
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, paddingTop: 10, borderTop: '1px dashed #cbd5e1' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Nominated Providers to update:</span>
+                    {req.targetProviders.map((p) => (
+                      <span key={p} style={{ fontSize: 11, background: '#e2e8f0', color: '#1e293b', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div>
+                    {isPending ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDispatchToProviders(req)}
+                        disabled={isBusy}
+                        className="btn btn-primary"
+                        style={{ fontSize: 12, padding: '7px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        <span>{isBusy ? 'Dispatching to Providers...' : 'Dispatch to Providers (API)'}</span>
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#166534', fontSize: 12, fontWeight: 600 }}>
+                        <CheckCircle2 size={15} />
+                        <span>FICA Dispatch Completed</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {logMessage && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: 6 }}>
+                    {logMessage}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {filteredRequests.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 28, color: '#64748b', fontSize: 13 }}>
+              No change requests match the current filter.
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="split-2-1">

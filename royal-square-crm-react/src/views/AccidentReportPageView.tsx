@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Car,
   Mic,
@@ -20,10 +20,13 @@ import {
   ChevronRight,
   Printer,
   Users,
-  ShieldAlert,
   UserCheck,
   Plus,
-  History
+  History,
+  PenTool,
+  RotateCcw,
+  Building,
+  Check
 } from 'lucide-react';
 import { liveTranscribeService } from '../services/geminiLiveService';
 import { SmartTranscribeService, SmartTranscribeResult } from '../services/smartTranscribe';
@@ -33,11 +36,19 @@ import { secureFetch } from '../services/api';
 import { MockProviderApiService } from '../services/mockProviderApi';
 import { CURRENT_CLIENT_MOCK } from '../client/mockClientData';
 
+export type PhotoCategory =
+  | 'ALL_VEHICLES'
+  | 'VEHICLE_DAMAGE'
+  | 'ROAD_SURFACE'
+  | 'REGISTRATION_DISCS'
+  | 'DRIVERS_LICENCE'
+  | 'ACCIDENT_SKETCH';
+
 interface UploadedPhoto {
   id: string;
   name: string;
   size: string;
-  category: 'VEHICLE_DAMAGE' | 'THIRD_PARTY_SCENE' | 'DRIVERS_LICENCE';
+  category: PhotoCategory;
   previewUrl: string;
 }
 
@@ -58,7 +69,19 @@ interface OtherPartyDetails {
   vehicleMakeModel: string;
   insurer: string;
   policyNumber: string;
+  policeCaseNumber: string;
+  statementTaken: boolean;
   driverStatement: string;
+}
+
+interface StationaryPropertyDetails {
+  involved: boolean;
+  propertyType: string;
+  ownerName: string;
+  ownerPhone: string;
+  damageDescription: string;
+  propertyInsurer: string;
+  propertyPolicyNumber: string;
 }
 
 interface AccidentReportPageViewProps {
@@ -70,15 +93,27 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
   const client = CURRENT_CLIENT_MOCK;
 
   // Step state (6 clean steps):
-  // 1: What Happened
+  // 1: Incident & Driver Particulars
   // 2: Scene Location
-  // 3: Other Party Details (Interested Party)
+  // 3: Other Party & Property Details
   // 4: Witness Details (Neutral Evidence)
-  // 5: Photo Evidence
-  // 6: SAPS & Review
+  // 5: Evidence Uploads & Collision Sketch
+  // 6: Police Docket & Review
   const [currentStep, setCurrentStep] = useState<number>(1);
 
-  // Step 1: Voice & Narrative
+  // Step 1: Incident Date, Time, Who was Driving, Vehicle Usage & Narrative
+  const [incidentDate, setIncidentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [incidentTime, setIncidentTime] = useState<string>(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+  const [whoWasDriving, setWhoWasDriving] = useState<'PRIMARY_INSURED' | 'SPOUSE' | 'OTHER_DRIVER'>('PRIMARY_INSURED');
+  const [otherDriverName, setOtherDriverName] = useState<string>('');
+  const [otherDriverIdOrLicence, setOtherDriverIdOrLicence] = useState<string>('');
+  const [otherDriverPhone, setOtherDriverPhone] = useState<string>('');
+  const [otherDriverRelationship, setOtherDriverRelationship] = useState<string>('Family Member');
+  const [vehicleUsage, setVehicleUsage] = useState<'PERSONAL' | 'BUSINESS'>('PERSONAL');
+
   const [narrative, setNarrative] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
   const [rawTranscript, setRawTranscript] = useState<string>('');
@@ -96,7 +131,8 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
     lng: 28.0567
   });
 
-  // Step 3: Other Involved Party (Interested Party Account)
+  // Step 3: Other Party & Property Details
+  const [involvedEntity, setInvolvedEntity] = useState<'THIRD_PARTY_VEHICLE' | 'STATIONARY_PROPERTY' | 'BOTH' | 'NONE_SINGLE_VEHICLE'>('THIRD_PARTY_VEHICLE');
   const [otherParty, setOtherParty] = useState<OtherPartyDetails>({
     involved: true,
     driverName: 'Sipho Khumalo',
@@ -106,7 +142,19 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
     vehicleMakeModel: 'Toyota Hilux 2.8 GD-6',
     insurer: 'Discovery Insure',
     policyNumber: 'DISC-POL-849201',
+    policeCaseNumber: 'CAS 492/09/2026',
+    statementTaken: true,
     driverStatement: 'Driver indicated he was braking on wet surface and slipped into our rear bumper.'
+  });
+
+  const [propertyDetails, setPropertyDetails] = useState<StationaryPropertyDetails>({
+    involved: false,
+    propertyType: 'Boundary Wall & Gate',
+    ownerName: 'Rivonia Place Body Corporate',
+    ownerPhone: '+27 11 883 4900',
+    damageDescription: 'Precast perimeter wall panel buckled and automated gate track bent.',
+    propertyInsurer: 'Santam Commercial Property',
+    propertyPolicyNumber: 'SAN-PROP-9821'
   });
 
   // Step 4: Witness Details (Neutral Evidence)
@@ -121,7 +169,7 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
     }
   ]);
 
-  // Step 5: Photo Evidence
+  // Step 5: Photo Evidence & Interactive Canvas Sketchpad
   const [photos, setPhotos] = useState<UploadedPhoto[]>([
     {
       id: 'doc-init-1',
@@ -129,12 +177,28 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
       size: '2.4 MB',
       category: 'VEHICLE_DAMAGE',
       previewUrl: 'https://images.unsplash.com/photo-1590362891991-f776e747a588?w=300&q=80'
+    },
+    {
+      id: 'doc-init-2',
+      name: 'Accident Scene Overview.jpg',
+      size: '3.1 MB',
+      category: 'ALL_VEHICLES',
+      previewUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=300&q=80'
     }
   ]);
 
-  // Step 6: SAPS Case Number (If added, removes 48h reminder!)
-  const [policeCaseNumber, setPoliceCaseNumber] = useState<string>('');
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [penColor, setPenColor] = useState<string>('#0f172a');
+  const [penSize, setPenSize] = useState<number>(3);
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [hasSketchContent, setHasSketchContent] = useState<boolean>(false);
+
+  // Step 6: SAPS Case Number & Statutory Notification
+  const [policeNotified, setPoliceNotified] = useState<boolean>(true);
+  const [policeCaseNumber, setPoliceCaseNumber] = useState<string>('CAS 382/09/2026');
   const [policeStation, setPoliceStation] = useState<string>('Sandton SAPS');
+  const [policeReportDate, setPoliceReportDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [officerName, setOfficerName] = useState<string>('Constable Dlamini');
   const [reminderDate, setReminderDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2); // 48-hour statutory window
@@ -234,24 +298,127 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
     }
   };
 
-  const handleSimulateUpload = (category: UploadedPhoto['category']) => {
-    const labels = {
-      VEHICLE_DAMAGE: 'Vehicle Damage Photo',
-      THIRD_PARTY_SCENE: 'Intersection Scene & Skid Marks',
-      DRIVERS_LICENCE: 'Driver Licence Card (Front)'
+  const handleSimulateUpload = (category: PhotoCategory) => {
+    const labels: Record<PhotoCategory, string> = {
+      ALL_VEHICLES: 'All Vehicles at Scene Overview',
+      VEHICLE_DAMAGE: 'Vehicle Damage (Front & Side)',
+      ROAD_SURFACE: 'Road Surface & Skid Marks',
+      REGISTRATION_DISCS: 'Windscreen Licence Disc',
+      DRIVERS_LICENCE: "Driver's Licence Card (Front & Back)",
+      ACCIDENT_SKETCH: 'Accident Scene Collision Sketch'
+    };
+    const sampleImages: Record<PhotoCategory, string> = {
+      ALL_VEHICLES: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=300&q=80',
+      VEHICLE_DAMAGE: 'https://images.unsplash.com/photo-1590362891991-f776e747a588?w=300&q=80',
+      ROAD_SURFACE: 'https://images.unsplash.com/photo-1519074069444-1ba4ea16e6f4?w=300&q=80',
+      REGISTRATION_DISCS: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=300&q=80',
+      DRIVERS_LICENCE: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=300&q=80',
+      ACCIDENT_SKETCH: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=300&q=80'
     };
     const newDoc: UploadedPhoto = {
       id: `doc-${Date.now()}`,
       name: `${labels[category]}.jpg`,
       size: `${(1.2 + Math.random() * 2.1).toFixed(1)} MB`,
       category,
-      previewUrl: 'https://images.unsplash.com/photo-1590362891991-f776e747a588?w=300&q=80'
+      previewUrl: sampleImages[category]
     };
     setPhotos((prev) => [...prev, newDoc]);
   };
 
+  const handleRealFileUpload = (e: React.ChangeEvent<HTMLInputElement>, cat: PhotoCategory) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const newDoc: UploadedPhoto = {
+        id: `upload-${Date.now()}`,
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        category: cat,
+        previewUrl: (event.target?.result as string) || URL.createObjectURL(file)
+      };
+      setPhotos((prev) => [...prev, newDoc]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const handleRemovePhoto = (id: string) => {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // Canvas drawing handlers
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    setIsDrawing(true);
+    setHasSketchContent(true);
+    const { x, y } = getCanvasCoords(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = penSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getCanvasCoords(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSketch = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSketchContent(false);
+  };
+
+  const handleSaveSketchToEvidence = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    const newDoc: UploadedPhoto = {
+      id: `sketch-${Date.now()}`,
+      name: `Accident_Collision_Diagram_${new Date().toISOString().slice(0, 10)}.png`,
+      size: '340 KB',
+      category: 'ACCIDENT_SKETCH',
+      previewUrl: dataUrl
+    };
+    setPhotos((prev) => [...prev, newDoc]);
   };
 
   const handleAddWitness = () => {
@@ -276,7 +443,7 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
   // Validation
   const hasNarrative = narrative.trim().length >= 8;
   const hasPhotos = photos.length > 0;
-  const hasCaseNumber = Boolean(policeCaseNumber.trim());
+  const hasCaseNumber = Boolean(policeCaseNumber.trim() && policeNotified);
 
   // Final Claim Submission
   const handleSubmitClaim = async () => {
@@ -293,16 +460,33 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
         policyNumber: client.insuredVehicle.policyNumber,
         insurer: client.insuredVehicle.insurer,
         vehicleReg: client.insuredVehicle.registration,
-        incidentDate: new Date().toISOString().split('T')[0],
+        incidentDate: incidentDate || new Date().toISOString().split('T')[0],
+        incidentTime,
+        whoWasDriving,
+        otherDriverDetails:
+          whoWasDriving === 'OTHER_DRIVER'
+            ? {
+                fullName: otherDriverName,
+                idOrLicence: otherDriverIdOrLicence,
+                phone: otherDriverPhone,
+                relationship: otherDriverRelationship
+              }
+            : undefined,
+        vehicleUsage,
         description: narrative,
-        policeCaseNumber: policeCaseNumber.trim() || undefined,
-        policeStation: policeCaseNumber.trim() ? policeStation : undefined,
+        policeNotified,
+        policeCaseNumber: (policeNotified && policeCaseNumber.trim()) ? policeCaseNumber.trim() : undefined,
+        policeStation: (policeNotified && policeCaseNumber.trim()) ? policeStation : undefined,
+        policeReportDate: policeNotified ? policeReportDate : undefined,
+        officerName: policeNotified ? officerName : undefined,
         location: location || {
           address: 'Sandton City, Johannesburg',
           lat: -26.1076,
           lng: 28.0567
         },
-        otherParty: otherParty.involved ? otherParty : undefined,
+        involvedEntity,
+        otherParty: (involvedEntity === 'THIRD_PARTY_VEHICLE' || involvedEntity === 'BOTH') ? otherParty : undefined,
+        propertyDetails: (involvedEntity === 'STATIONARY_PROPERTY' || involvedEntity === 'BOTH') ? propertyDetails : undefined,
         witnesses: hasWitness ? witnesses.filter((w) => w.fullName.trim()) : [],
         documents: photos.map((p) => ({
           name: p.name,
@@ -533,12 +717,12 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
         <div className="bg-white p-3 md:p-4 rounded-2xl border border-slate-200/80 shadow-sm">
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
             {[
-              { num: 1, label: '1. Narrative' },
+              { num: 1, label: '1. Incident & Driver' },
               { num: 2, label: '2. Location' },
-              { num: 3, label: '3. Other Party' },
+              { num: 3, label: '3. Third Party & Property' },
               { num: 4, label: '4. Witnesses' },
-              { num: 5, label: '5. Photos' },
-              { num: 6, label: '6. SAPS & Submit' }
+              { num: 5, label: '5. Evidence & Sketch' },
+              { num: 6, label: '6. Police & Review' }
             ].map((s) => {
               const isCurrent = currentStep === s.num;
               const isPast = currentStep > s.num;
@@ -562,17 +746,169 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
           </div>
         </div>
 
-        {/* STEP 1: WHAT HAPPENED (VOICE & TEXT) */}
+        {/* STEP 1: WHAT HAPPENED & DRIVER CIRCUMSTANCES */}
         {currentStep === 1 && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-                <h2 className="text-lg font-bold text-slate-900">What happened?</h2>
+                <h2 className="text-lg font-bold text-slate-900">Incident Details &amp; Driver Circumstances</h2>
               </div>
               <p className="text-xs text-slate-500">
-                Speak naturally or type. Describe the point of impact, road conditions, speed, and immediate consequences.
+                Specify when the incident occurred, who was at the wheel, whether the vehicle was on personal or business use, and describe the sequence of events.
               </p>
+            </div>
+
+            {/* Incident Date & Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="space-y-1">
+                <label htmlFor="incident-date" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Clock size={13} className="text-indigo-600" />
+                  Date of Incident:
+                </label>
+                <input
+                  id="incident-date"
+                  type="date"
+                  value={incidentDate}
+                  onChange={(e) => setIncidentDate(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="incident-time" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Clock size={13} className="text-indigo-600" />
+                  Time of Incident:
+                </label>
+                <input
+                  id="incident-time"
+                  type="time"
+                  value={incidentTime}
+                  onChange={(e) => setIncidentTime(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Who was driving */}
+            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Who was driving the insured vehicle?
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  { key: 'PRIMARY_INSURED', label: client.fullName, sub: 'Primary Insured' },
+                  { key: 'SPOUSE', label: 'Nomvula Mokoena', sub: 'Spouse / Named Driver' },
+                  { key: 'OTHER_DRIVER', label: 'Other Authorized Driver', sub: 'Employee / Family' }
+                ].map((drv) => (
+                  <button
+                    key={drv.key}
+                    type="button"
+                    onClick={() => setWhoWasDriving(drv.key as any)}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      whoWasDriving === drv.key
+                        ? 'border-indigo-600 bg-indigo-50/80 shadow-sm'
+                        : 'border-slate-200 bg-white hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong className="text-xs text-slate-900 block">{drv.label}</strong>
+                      {whoWasDriving === drv.key && <Check size={14} className="text-indigo-600" />}
+                    </div>
+                    <span className="text-[11px] text-slate-500">{drv.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* If Other Driver Selected */}
+              {whoWasDriving === 'OTHER_DRIVER' && (
+                <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Driver's Full Name:</label>
+                    <input
+                      value={otherDriverName}
+                      onChange={(e) => setOtherDriverName(e.target.value)}
+                      placeholder="e.g. Sipho Ndlovu"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">SA ID or Licence Number:</label>
+                    <input
+                      value={otherDriverIdOrLicence}
+                      onChange={(e) => setOtherDriverIdOrLicence(e.target.value)}
+                      placeholder="e.g. 8402195028084 / Code 08"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Driver Phone Number:</label>
+                    <input
+                      value={otherDriverPhone}
+                      onChange={(e) => setOtherDriverPhone(e.target.value)}
+                      placeholder="e.g. +27 82 000 0000"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Relationship to Policyholder:</label>
+                    <select
+                      value={otherDriverRelationship}
+                      onChange={(e) => setOtherDriverRelationship(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-900"
+                    >
+                      <option value="Family Member">Family Member</option>
+                      <option value="Company Employee">Company Employee</option>
+                      <option value="Valet / Chauffeur">Valet / Chauffeur</option>
+                      <option value="Friend / Authorized Borrower">Friend / Authorized Borrower</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Vehicle Usage at time of incident */}
+            <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Vehicle Usage at the time of the incident:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVehicleUsage('PERSONAL')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    vehicleUsage === 'PERSONAL'
+                      ? 'border-indigo-600 bg-indigo-50/80 shadow-sm'
+                      : 'border-slate-200 bg-white hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <strong className="text-xs text-slate-900 block">Personal &amp; Commuting Use</strong>
+                    {vehicleUsage === 'PERSONAL' && <Check size={14} className="text-indigo-600" />}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Private, social, domestic, and travelling to/from principal place of work.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVehicleUsage('BUSINESS')}
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                    vehicleUsage === 'BUSINESS'
+                      ? 'border-indigo-600 bg-indigo-50/80 shadow-sm'
+                      : 'border-slate-200 bg-white hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <strong className="text-xs text-slate-900 block">Business &amp; Professional Travel</strong>
+                    {vehicleUsage === 'BUSINESS' && <Check size={14} className="text-indigo-600" />}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Visiting clients, commercial errands, or on-duty travel covered under business endorsement.
+                  </p>
+                </button>
+              </div>
             </div>
 
             {/* Voice Control Bar */}
@@ -632,9 +968,9 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label htmlFor="narrative" className="text-xs font-semibold text-slate-700">
-                  Incident Statement & Essential Details:
+                  Incident Statement &amp; Essential Details:
                 </label>
-                <span className="text-[11px] text-slate-400">Include collision point & speed if known</span>
+                <span className="text-[11px] text-slate-400">Include collision point &amp; speed if known</span>
               </div>
               <textarea
                 id="narrative"
@@ -742,58 +1078,64 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
           </div>
         )}
 
-        {/* STEP 3: OTHER PARTY DETAILS (INTERESTED PARTY ACCOUNT) */}
+        {/* STEP 3: OTHER PARTY & PROPERTY DETAILS */}
         {currentStep === 3 && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">3</span>
-                <h2 className="text-lg font-bold text-slate-900">Other Involved Driver & Vehicle</h2>
+                <h2 className="text-lg font-bold text-slate-900">Other Vehicles &amp; Property Involved</h2>
               </div>
               <p className="text-xs text-slate-500">
-                Record the third-party vehicle details, their insurer, and their driver's version of the incident.
+                Record details of any third-party vehicles, other drivers, and damaged property (walls, gates, street fixtures) involved in the collision.
               </p>
             </div>
 
-            {/* Question: Was another vehicle involved? */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-4">
-              <div>
-                <strong className="text-sm text-slate-900 block">Was another vehicle or third party involved?</strong>
-                <span className="text-xs text-slate-500">e.g. Another car, delivery motorcycle, or pedestrian.</span>
-              </div>
-              <div className="inline-flex rounded-xl border border-slate-300 p-1 bg-white">
-                <button
-                  type="button"
-                  onClick={() => setOtherParty((prev) => ({ ...prev, involved: true }))}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    otherParty.involved ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOtherParty((prev) => ({ ...prev, involved: false }))}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    !otherParty.involved ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  No (Single Vehicle)
-                </button>
+            {/* Selector: What was involved? */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Select other parties or property involved:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { key: 'THIRD_PARTY_VEHICLE', label: 'Other Vehicle Only' },
+                  { key: 'STATIONARY_PROPERTY', label: 'Property / Wall Only' },
+                  { key: 'BOTH', label: 'Vehicle & Property' },
+                  { key: 'NONE_SINGLE_VEHICLE', label: 'Single Vehicle Only' }
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setInvolvedEntity(item.key as any);
+                      const hasVeh = item.key === 'THIRD_PARTY_VEHICLE' || item.key === 'BOTH';
+                      const hasProp = item.key === 'STATIONARY_PROPERTY' || item.key === 'BOTH';
+                      setOtherParty((prev) => ({ ...prev, involved: hasVeh }));
+                      setPropertyDetails((prev) => ({ ...prev, involved: hasProp }));
+                    }}
+                    className={`p-2.5 rounded-xl border text-center transition cursor-pointer text-xs font-semibold ${
+                      involvedEntity === item.key
+                        ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {otherParty.involved ? (
-              <div className="space-y-5">
-                {/* Regulatory Notice Banner for Interested Party */}
-                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                  <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <strong>Interested Party Account Notice:</strong>
-                    <p className="text-[11px] text-amber-800">
-                      The other driver is an interested party. Their details and statement are recorded for inter-insurer knock-for-knock arbitration and third-party recovery, and are <strong>not treated as neutral evidence</strong>.
-                    </p>
-                  </div>
+            {/* Third-Party Vehicle Section */}
+            {(involvedEntity === 'THIRD_PARTY_VEHICLE' || involvedEntity === 'BOTH') && (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Car size={16} className="text-indigo-600" />
+                    Third-Party Driver &amp; Vehicle Particulars
+                  </h3>
+                  <span className="text-[11px] text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 font-medium">
+                    Interested Party Account
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -812,82 +1154,174 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
                     <input
                       value={otherParty.driverPhone}
                       onChange={(e) => setOtherParty({ ...otherParty, driverPhone: e.target.value })}
-                      placeholder="e.g. +27 83 000 0000"
+                      placeholder="e.g. +27 83 291 8841"
                       className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Other Driver's Licence Code / ID:</label>
+                    <label className="font-semibold text-slate-700">Driver's Licence Number / Code:</label>
                     <input
                       value={otherParty.driverLicenceNumber}
                       onChange={(e) => setOtherParty({ ...otherParty, driverLicenceNumber: e.target.value })}
-                      placeholder="e.g. Code 08 / ID number"
+                      placeholder="e.g. KHUMAS8401829 / Code 08"
                       className="w-full p-3 rounded-xl border border-slate-300 font-mono text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Other Vehicle Registration Plate:</label>
+                    <label className="font-semibold text-slate-700">Vehicle Registration Plate:</label>
                     <input
                       value={otherParty.vehicleRegistration}
                       onChange={(e) => setOtherParty({ ...otherParty, vehicleRegistration: e.target.value.toUpperCase() })}
-                      placeholder="e.g. CA 882-991 or GP plates"
+                      placeholder="e.g. CA 749-812"
                       className="w-full p-3 rounded-xl border border-slate-300 font-mono uppercase text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Other Vehicle Make & Model:</label>
+                    <label className="font-semibold text-slate-700">Vehicle Make &amp; Model:</label>
                     <input
                       value={otherParty.vehicleMakeModel}
                       onChange={(e) => setOtherParty({ ...otherParty, vehicleMakeModel: e.target.value })}
-                      placeholder="e.g. Toyota Hilux / VW Polo"
+                      placeholder="e.g. Toyota Hilux 2.8 GD-6"
                       className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Other Party's Insurer:</label>
+                    <label className="font-semibold text-slate-700">Third-Party Insurer:</label>
                     <input
                       value={otherParty.insurer}
                       onChange={(e) => setOtherParty({ ...otherParty, insurer: e.target.value })}
-                      placeholder="e.g. Discovery Insure / OUTsurance / Santam / Uninsured"
+                      placeholder="e.g. Discovery Insure / Santam / OUTsurance"
                       className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
                     />
                   </div>
 
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="font-semibold text-slate-700">Other Party's Policy Number (if provided):</label>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Third-Party Policy Number:</label>
                     <input
                       value={otherParty.policyNumber}
                       onChange={(e) => setOtherParty({ ...otherParty, policyNumber: e.target.value })}
-                      placeholder="e.g. POL-994821 or Unknown"
+                      placeholder="e.g. DISC-POL-849201"
                       className="w-full p-3 rounded-xl border border-slate-300 font-mono text-slate-900"
                     />
                   </div>
 
-                  <div className="sm:col-span-2 space-y-1">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Third-Party Police Docket / Case #:</label>
+                    <input
+                      value={otherParty.policeCaseNumber}
+                      onChange={(e) => setOtherParty({ ...otherParty, policeCaseNumber: e.target.value })}
+                      placeholder="e.g. CAS 492/09/2026 or Pending"
+                      className="w-full p-3 rounded-xl border border-slate-300 font-mono text-slate-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="font-semibold text-slate-700">Other Driver's Account / Version:</label>
-                      <span className="text-[11px] text-amber-700 font-medium">Interested Party Account</span>
+                      <label className="font-semibold text-slate-700">Other Driver's Statement / Explanation:</label>
+                      <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={otherParty.statementTaken}
+                          onChange={(e) => setOtherParty({ ...otherParty, statementTaken: e.target.checked })}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>Statement taken at scene</span>
+                      </label>
                     </div>
                     <textarea
                       rows={3}
                       value={otherParty.driverStatement}
                       onChange={(e) => setOtherParty({ ...otherParty, driverStatement: e.target.value })}
-                      placeholder="e.g. Driver claimed his brakes locked on the wet road surface..."
+                      placeholder="e.g. Driver stated his brakes locked on the wet road surface and slipped into our rear..."
                       className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 text-xs"
                     />
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {/* Stationary Property Section */}
+            {(involvedEntity === 'STATIONARY_PROPERTY' || involvedEntity === 'BOTH') && (
+              <div className="space-y-4 pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Building size={16} className="text-indigo-600" />
+                    Damaged Stationary Property Details
+                  </h3>
+                  <span className="text-[11px] text-slate-500">Wall, Fence, Gate, Municipal Pole</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Property Type:</label>
+                    <select
+                      value={propertyDetails.propertyType}
+                      onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyType: e.target.value })}
+                      className="w-full p-3 rounded-xl border border-slate-300 bg-white text-slate-900"
+                    >
+                      <option value="Boundary Wall & Gate">Boundary Wall &amp; Gate</option>
+                      <option value="Precast Concrete Fence">Precast Concrete Fence</option>
+                      <option value="Traffic Light / Streetlamp">Traffic Light / Streetlamp</option>
+                      <option value="Guardrail / Municipal Barrier">Guardrail / Municipal Barrier</option>
+                      <option value="Commercial Shopfront / Building">Commercial Shopfront / Building</option>
+                      <option value="Other Static Property">Other Static Property</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Property Owner Name / Body Corporate:</label>
+                    <input
+                      value={propertyDetails.ownerName}
+                      onChange={(e) => setPropertyDetails({ ...propertyDetails, ownerName: e.target.value })}
+                      placeholder="e.g. Rivonia Place Body Corporate"
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Owner Contact Phone:</label>
+                    <input
+                      value={propertyDetails.ownerPhone}
+                      onChange={(e) => setPropertyDetails({ ...propertyDetails, ownerPhone: e.target.value })}
+                      placeholder="e.g. +27 11 883 4900"
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Property Insurer (if known):</label>
+                    <input
+                      value={propertyDetails.propertyInsurer}
+                      onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyInsurer: e.target.value })}
+                      placeholder="e.g. Santam Commercial Property"
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="font-semibold text-slate-700">Description of Property Damage:</label>
+                    <textarea
+                      rows={2}
+                      value={propertyDetails.damageDescription}
+                      onChange={(e) => setPropertyDetails({ ...propertyDetails, damageDescription: e.target.value })}
+                      placeholder="e.g. Two precast concrete wall panels cracked and electric fence wire severed..."
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {involvedEntity === 'NONE_SINGLE_VEHICLE' && (
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">
                 <Car size={32} className="mx-auto text-slate-400" />
                 <h4 className="font-bold text-slate-800 text-sm">Single Vehicle Incident</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  No other driver or third-party vehicle involved. Your claim will be processed under comprehensive own-damage cover.
+                  No other driver, vehicle, or static property was involved. Your claim will proceed under own-damage comprehensive cover.
                 </p>
               </div>
             )}
@@ -1094,85 +1528,193 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
           </div>
         )}
 
-        {/* STEP 5: PHOTOS & EVIDENCE */}
+        {/* STEP 5: PHOTOS, EVIDENCE & ACCIDENT SKETCH */}
         {currentStep === 5 && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">5</span>
-                <h2 className="text-lg font-bold text-slate-900">Photos & Scene Evidence</h2>
+                <h2 className="text-lg font-bold text-slate-900">Photos, Scene Evidence &amp; Accident Sketch</h2>
               </div>
               <p className="text-xs text-slate-500">
-                Snap damage photos of your vehicle, the third-party vehicle, and the scene. Mandatory for fast-tracked assessor sign-off.
+                Upload clear scene photos, vehicle damage, road surface, registration discs, driver's licences, and sketch the collision trajectory.
               </p>
             </div>
 
-            {/* Upload Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => handleSimulateUpload('VEHICLE_DAMAGE')}
-                className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition flex flex-col justify-between gap-2 cursor-pointer"
-              >
-                <Camera size={24} className="text-indigo-600" />
-                <div>
-                  <strong className="text-xs font-bold text-slate-900 block">Vehicle Damage Photo</strong>
-                  <span className="text-[11px] text-slate-500">+ Tap to attach photo</span>
-                </div>
-              </button>
+            {/* Upload Action Category Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { cat: 'ALL_VEHICLES' as const, label: 'All Vehicles', sub: 'Scene positions', icon: Car, color: 'text-indigo-600' },
+                { cat: 'VEHICLE_DAMAGE' as const, label: 'Damage', sub: 'Impact panels', icon: Camera, color: 'text-rose-600' },
+                { cat: 'ROAD_SURFACE' as const, label: 'Road Surface', sub: 'Skid marks & signs', icon: MapPin, color: 'text-amber-600' },
+                { cat: 'REGISTRATION_DISCS' as const, label: 'Licence Discs', sub: 'Windscreens', icon: FileCheck, color: 'text-blue-600' },
+                { cat: 'DRIVERS_LICENCE' as const, label: "Driver's Licence", sub: 'Front & back', icon: ShieldCheck, color: 'text-emerald-600' }
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.cat} className="p-3 bg-slate-50 hover:bg-indigo-50/40 rounded-xl border border-slate-200 transition flex flex-col justify-between gap-2">
+                    <div className="flex items-center justify-between">
+                      <Icon size={20} className={item.color} />
+                      <label className="text-[10px] text-indigo-700 font-bold hover:underline cursor-pointer">
+                        File
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleRealFileUpload(e, item.cat)}
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <strong className="text-xs font-bold text-slate-900 block leading-tight">{item.label}</strong>
+                      <span className="text-[10px] text-slate-500">{item.sub}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateUpload(item.cat)}
+                      className="w-full py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-[11px] font-semibold border border-slate-200 transition cursor-pointer"
+                    >
+                      + Quick Attach
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
 
-              <button
-                type="button"
-                onClick={() => handleSimulateUpload('THIRD_PARTY_SCENE')}
-                className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition flex flex-col justify-between gap-2 cursor-pointer"
-              >
-                <UploadCloud size={24} className="text-amber-600" />
+            {/* INTERACTIVE COLLISION SKETCHPAD */}
+            <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <strong className="text-xs font-bold text-slate-900 block">Scene / Other Car</strong>
-                  <span className="text-[11px] text-slate-500">+ Tap to attach scene</span>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <PenTool size={16} className="text-indigo-600" />
+                    Accident Scene Sketch &amp; Collision Trajectory
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Sketch the intersection, positions of Car A (Red) and Car B (Blue), and collision direction.
+                  </p>
                 </div>
-              </button>
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl hover:bg-slate-100 transition cursor-pointer self-start sm:self-auto">
+                  <UploadCloud size={14} className="text-indigo-600" />
+                  <span>Upload Sketch Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleRealFileUpload(e, 'ACCIDENT_SKETCH')}
+                  />
+                </label>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => handleSimulateUpload('DRIVERS_LICENCE')}
-                className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition flex flex-col justify-between gap-2 cursor-pointer"
-              >
-                <FileCheck size={24} className="text-emerald-600" />
-                <div>
-                  <strong className="text-xs font-bold text-slate-900 block">Driver's Licence Card</strong>
-                  <span className="text-[11px] text-slate-500">+ Tap to attach card</span>
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-white rounded-xl border border-slate-200 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-600 text-[11px]">Pen Color:</span>
+                  {[
+                    { color: '#0f172a', label: 'Road / Black' },
+                    { color: '#dc2626', label: 'Car A (Insured)' },
+                    { color: '#2563eb', label: 'Car B (Other)' },
+                    { color: '#d97706', label: 'Direction Arrow' }
+                  ].map((p) => (
+                    <button
+                      key={p.color}
+                      type="button"
+                      onClick={() => setPenColor(p.color)}
+                      className={`w-6 h-6 rounded-full border-2 transition cursor-pointer ${
+                        penColor === p.color ? 'ring-2 ring-indigo-500 scale-110' : 'border-white'
+                      }`}
+                      style={{ backgroundColor: p.color }}
+                      title={p.label}
+                    />
+                  ))}
                 </div>
-              </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-600 text-[11px]">Stroke:</span>
+                  {[2, 4, 7].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setPenSize(s)}
+                      className={`px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer ${
+                        penSize === s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {s}px
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clearSketch}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold transition cursor-pointer"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Clear</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSketchToEvidence}
+                    disabled={!hasSketchContent}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition cursor-pointer shadow-sm"
+                  >
+                    <Check size={13} />
+                    <span>Attach Sketch to Evidence</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawing Canvas */}
+              <div className="w-full bg-white rounded-xl border border-slate-300 overflow-hidden shadow-inner flex justify-center">
+                <canvas
+                  ref={canvasRef}
+                  width={720}
+                  height={260}
+                  className="w-full max-w-full touch-none cursor-crosshair bg-white"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              </div>
             </div>
 
             {/* Attached Photos List */}
             <div className="space-y-3">
               <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-                Attached Evidence ({photos.length})
+                Attached Claim Evidence &amp; Diagrams ({photos.length})
               </span>
 
               {photos.length === 0 ? (
                 <div className="p-4 bg-rose-50 rounded-xl border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
                   <AlertCircle size={16} />
-                  <span>Please attach at least 1 photo above before proceeding.</span>
+                  <span>Please attach at least 1 photo or sketch above before proceeding.</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {photos.map((p) => (
                     <div key={p.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <img src={p.previewUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200" />
+                        <img src={p.previewUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200 bg-white" />
                         <div>
-                          <p className="text-xs font-bold text-slate-900 truncate max-w-[180px]">{p.name}</p>
-                          <span className="text-[11px] text-slate-500">{p.size}</span>
+                          <p className="text-xs font-bold text-slate-900 truncate max-w-[150px]">{p.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-slate-200 text-slate-700 rounded">
+                              {p.category.replace('_', ' ')}
+                            </span>
+                            <span className="text-[10px] text-slate-500">{p.size}</span>
+                          </div>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleRemovePhoto(p.id)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                        title="Remove photo"
+                        title="Remove evidence"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1198,89 +1740,126 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
                 disabled={!hasPhotos}
                 className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl text-sm transition cursor-pointer"
               >
-                <span>Next: SAPS & Review</span>
+                <span>Next: SAPS &amp; Review</span>
                 <ArrowRight size={16} />
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 6: POLICE DOCKET (CASE NUMBER) & FINAL SUBMIT */}
+        {/* STEP 6: POLICE DOCKET & FINAL REVIEW */}
         {currentStep === 6 && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">6</span>
-                <h2 className="text-lg font-bold text-slate-900">Police Docket & Review</h2>
+                <h2 className="text-lg font-bold text-slate-900">Police Docket &amp; Statutory Review</h2>
               </div>
               <p className="text-xs text-slate-500">
-                Add your SAPS Case / Docket Number if already reported, or schedule an automatic 48-hour reminder.
+                Record whether the South African Police Service (SAPS) was notified, enter the CAS / Docket reference, or schedule a statutory 48-hour reminder.
               </p>
             </div>
 
-            {/* SAPS Case Docket Input Section */}
+            {/* Question: Were police notified? */}
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">SAPS Police Case / CAS Number</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Were the Police (SAPS) notified of this collision?</h3>
                   <p className="text-xs text-slate-500">
-                    If you already reported this accident to SAPS, enter the docket reference below.
+                    Section 61 of the National Road Traffic Act requires accidents involving damage or injury to be reported within 24–48 hours.
                   </p>
                 </div>
-                {hasCaseNumber && (
-                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={13} /> 48h Requirement Satisfied
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1">
-                  <label htmlFor="case-number" className="font-semibold text-slate-700 block">
-                    Police Case / CAS Number (Optional):
-                  </label>
-                  <input
-                    id="case-number"
-                    value={policeCaseNumber}
-                    onChange={(e) => setPoliceCaseNumber(e.target.value)}
-                    placeholder="e.g. CAS 382/09/2026"
-                    className="w-full p-3 rounded-xl border border-slate-300 font-mono text-sm uppercase text-slate-900 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor="police-station" className="font-semibold text-slate-700 block">
-                    Police Station:
-                  </label>
-                  <input
-                    id="police-station"
-                    value={policeStation}
-                    onChange={(e) => setPoliceStation(e.target.value)}
-                    placeholder="e.g. Sandton SAPS"
-                    className="w-full p-3 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white"
-                  />
+                <div className="inline-flex rounded-xl border border-slate-300 p-1 bg-white shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPoliceNotified(true)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      policeNotified ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Yes, Reported
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPoliceNotified(false)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      !policeNotified ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Not Yet Reported
+                  </button>
                 </div>
               </div>
 
-              {/* Conditional Reminder logic: If case number is provided, remove reminder! */}
-              {hasCaseNumber ? (
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2.5">
-                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Police Case Docket Logged:</strong>
-                    <p className="text-[11px] text-emerald-700">
-                      Since your SAPS Case Number ({policeCaseNumber}) has been recorded, the 48-hour reminder has been automatically removed. Your reporting legal requirement is completed.
-                    </p>
+              {policeNotified ? (
+                <div className="space-y-4 pt-3 border-t border-slate-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <label htmlFor="case-number" className="font-semibold text-slate-700 block">
+                        SAPS Case / CAS Number:
+                      </label>
+                      <input
+                        id="case-number"
+                        value={policeCaseNumber}
+                        onChange={(e) => setPoliceCaseNumber(e.target.value)}
+                        placeholder="e.g. CAS 382/09/2026"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs uppercase text-slate-900 bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="police-station" className="font-semibold text-slate-700 block">
+                        Police Station:
+                      </label>
+                      <input
+                        id="police-station"
+                        value={policeStation}
+                        onChange={(e) => setPoliceStation(e.target.value)}
+                        placeholder="e.g. Sandton SAPS"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 block">
+                        Date Reported:
+                      </label>
+                      <input
+                        type="date"
+                        value={policeReportDate}
+                        onChange={(e) => setPoliceReportDate(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 block">
+                        Attending Officer / Badge:
+                      </label>
+                      <input
+                        value={officerName}
+                        onChange={(e) => setOfficerName(e.target.value)}
+                        placeholder="e.g. Constable Dlamini"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span>
+                      Police docket recorded: <strong>{policeCaseNumber}</strong> at <strong>{policeStation}</strong>. Statutory compliance verified.
+                    </span>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200 space-y-3">
+                <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200 space-y-3">
                   <div className="flex items-start gap-2.5">
                     <Clock size={20} className="text-amber-600 shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
-                      <strong className="text-xs text-slate-900">48-Hour Police Docket Reminder Active</strong>
+                      <strong className="text-xs text-slate-900">48-Hour Police Docket Follow-Up Active</strong>
                       <p className="text-[11px] text-slate-600">
-                        South African law requires motor accidents to be reported to SAPS within 24–48 hours. Since no case number was entered yet, we will send you a prompt:
+                        Please visit your nearest SAPS station within 48 hours to log the accident and receive a CAS docket number. We will send you an automated reminder:
                       </p>
                     </div>
                   </div>
@@ -1326,53 +1905,68 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
 
             {/* Comprehensive Review Card */}
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-4 text-xs">
-              <h4 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2">
-                Claim Overview Summary
+              <h4 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2 flex items-center justify-between">
+                <span>Claim Intake Summary Overview</span>
+                <span className="text-[11px] font-normal text-slate-500">Ready for statutory submission</span>
               </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <span className="font-semibold text-slate-500 uppercase block">Client & Vehicle</span>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Client &amp; Insured Vehicle</span>
                   <p className="font-bold text-slate-900 text-sm mt-0.5">{client.fullName}</p>
-                  <p className="text-slate-600">{client.insuredVehicle.year} {client.insuredVehicle.make} {client.insuredVehicle.model} ({client.insuredVehicle.registration})</p>
+                  <p className="text-slate-600">{client.insuredVehicle.year} {client.insuredVehicle.make} {client.insuredVehicle.model}</p>
+                  <p className="font-mono text-slate-800 font-semibold">{client.insuredVehicle.registration}</p>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-500 uppercase block">Underwriting Policy</span>
-                  <p className="font-bold text-slate-900 text-sm mt-0.5">{client.insuredVehicle.insurer}</p>
-                  <p className="font-mono text-slate-600">Policy #{client.insuredVehicle.policyNumber} &bull; Standard Excess R {client.insuredVehicle.excessAmount}</p>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Incident Date, Time &amp; Driver</span>
+                  <p className="font-bold text-slate-900 mt-0.5">{incidentDate} at {incidentTime}</p>
+                  <p className="text-slate-700">
+                    Driver: <strong>{whoWasDriving === 'PRIMARY_INSURED' ? client.fullName : whoWasDriving === 'SPOUSE' ? 'Nomvula Mokoena' : otherDriverName || 'Other Driver'}</strong>
+                  </p>
+                  <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-semibold">
+                    {vehicleUsage === 'PERSONAL' ? 'Personal & Commuting' : 'Business Travel'}
+                  </span>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <span className="font-semibold text-slate-500 uppercase block">Incident Description</span>
-                  <p className="text-slate-800 mt-1 bg-white p-3 rounded-xl border border-slate-200/80">
-                    {narrative || 'Collision reported by client.'}
+                <div>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Underwriting Insurer</span>
+                  <p className="font-bold text-slate-900 text-sm mt-0.5">{client.insuredVehicle.insurer}</p>
+                  <p className="font-mono text-slate-600">Policy #{client.insuredVehicle.policyNumber}</p>
+                  <p className="text-slate-500 text-[11px]">Standard Excess R {client.insuredVehicle.excessAmount}</p>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Incident Sequence / Description</span>
+                  <p className="text-slate-800 mt-1 bg-white p-3 rounded-xl border border-slate-200/80 leading-relaxed">
+                    {narrative || 'No detailed statement provided.'}
                   </p>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-500 uppercase block">Other Party Involved</span>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Other Party / Vehicle</span>
                   <p className="text-slate-800 font-medium mt-0.5">
                     {otherParty.involved ? `${otherParty.driverName} (${otherParty.vehicleRegistration}) • ${otherParty.insurer}` : 'None (Single Vehicle)'}
                   </p>
+                  {otherParty.involved && otherParty.policeCaseNumber && (
+                    <p className="text-[11px] text-slate-500">Third-Party Docket: {otherParty.policeCaseNumber}</p>
+                  )}
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-500 uppercase block">Neutral Witnesses</span>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Stationary Property</span>
                   <p className="text-slate-800 font-medium mt-0.5">
-                    {hasWitness && witnesses.length > 0 ? `${witnesses.length} Witness(es) recorded` : 'No independent witnesses'}
+                    {propertyDetails.involved ? `${propertyDetails.propertyType} (${propertyDetails.ownerName})` : 'No static property damage'}
                   </p>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-500 uppercase block">Evidence Attached</span>
-                  <p className="text-slate-800 font-medium mt-0.5">{photos.length} photo(s) attached</p>
-                </div>
-
-                <div>
-                  <span className="font-semibold text-slate-500 uppercase block">SAPS Case Status</span>
+                  <span className="font-semibold text-slate-500 uppercase block text-[10px]">Evidence &amp; Diagram</span>
                   <p className="text-slate-800 font-medium mt-0.5">
-                    {hasCaseNumber ? `CAS ${policeCaseNumber} (${policeStation})` : `Pending 48h follow-up (${reminderDate})`}
+                    {photos.length} photo(s) &amp; diagrams attached
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {hasWitness ? `${witnesses.length} Neutral witness(es)` : 'No witnesses'}
                   </p>
                 </div>
               </div>
@@ -1393,7 +1987,7 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
               >
                 <ArrowLeft size={15} />
-                <span>Back to Photos</span>
+                <span>Back to Evidence</span>
               </button>
 
               <button
@@ -1405,12 +1999,12 @@ export const AccidentReportPageView: React.FC<AccidentReportPageViewProps> = ({ 
                 {isSubmitting ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>Submitting to Santam...</span>
+                    <span>Submitting to Insurer...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={18} />
-                    <span>Confirm & Submit Accident Claim</span>
+                    <span>Confirm &amp; Submit Accident Claim</span>
                     <ChevronRight size={16} />
                   </>
                 )}
