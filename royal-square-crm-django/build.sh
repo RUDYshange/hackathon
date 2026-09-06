@@ -6,11 +6,20 @@
 # ==============================================================================
 set -o errexit  # abort the build on the first error
 
+# If frontend directory exists and npm is available, build the React SPA
+if [ -d "../royal-square-crm-react" ] && command -v npm >/dev/null 2>&1; then
+    echo "==> Building React frontend SPA..."
+    pushd ../royal-square-crm-react
+    npm ci || npm install
+    npm run build
+    popd
+fi
+
 pip install --upgrade pip
 pip install -r requirements.txt
 
 # Collect static assets so WhiteNoise can serve the Django admin + DRF
-# browsable API in production.
+# browsable API + React SPA in production.
 python manage.py collectstatic --no-input
 
 # Apply database migrations against the connected Postgres instance.
