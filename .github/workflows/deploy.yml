@@ -3,6 +3,12 @@ name: Deploy to Render
 # Runs only after the CI workflow completes successfully on `main`, then
 # triggers a deploy of each Render service via its deploy hook. This makes CI a
 # hard gate: broken builds never reach production.
+#
+# NOTE: The Render services currently use native auto-deploy (autoDeploy: yes),
+# so pushes to `main` already redeploy automatically. This workflow stays a
+# no-op until you add the RENDER_DEPLOY_HOOK_* secrets. If you switch to this
+# CI-gated hook flow, also set autoDeploy to "no" on both Render services to
+# avoid deploying twice.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -26,8 +32,8 @@ jobs:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
         run: |
           if [ -z "$HOOK" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK_API secret is not set. Add it in repo Settings > Secrets and variables > Actions."
-            exit 1
+            echo "::notice::RENDER_DEPLOY_HOOK_API not set — skipping (Render native auto-deploy is handling this). Add the secret to enable CI-gated hook deploys."
+            exit 0
           fi
           echo "Triggering Render deploy for royal-square-crm-api..."
           curl -fsSL -X POST "$HOOK"
@@ -37,8 +43,8 @@ jobs:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
         run: |
           if [ -z "$HOOK" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK_WEB secret is not set. Add it in repo Settings > Secrets and variables > Actions."
-            exit 1
+            echo "::notice::RENDER_DEPLOY_HOOK_WEB not set — skipping (Render native auto-deploy is handling this). Add the secret to enable CI-gated hook deploys."
+            exit 0
           fi
           echo "Triggering Render deploy for royal-square-crm-web..."
           curl -fsSL -X POST "$HOOK"
