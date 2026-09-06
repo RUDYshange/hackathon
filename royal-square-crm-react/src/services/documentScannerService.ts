@@ -17,6 +17,8 @@ export interface IdScanResult {
   nationality?: string;
   gender?: string;
   checksum_valid?: boolean;
+  bank_name?: string;
+  account_number?: string;
 }
 
 export interface JobScanResult {

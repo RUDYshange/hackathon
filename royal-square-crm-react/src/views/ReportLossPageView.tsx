@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { CURRENT_CLIENT_MOCK } from '../client/mockClientData';
 import { secureFetch } from '../services/api';
+import { MockProviderApiService } from '../services/mockProviderApi';
 
 interface LostItem {
   id: string;
@@ -198,6 +199,18 @@ export const ReportLossPageView: React.FC<ReportLossPageViewProps> = ({ onBackTo
         method: 'POST',
         body: JSON.stringify(payload)
       });
+
+      // Transmit to mock provider integration log in real-time
+      try {
+        await MockProviderApiService.submitClaimToProvider(undefined, 'Santam', {
+          claim_id: generatedRef,
+          client_name: client.fullName,
+          client_reference: client.id,
+          policy_number: 'ST-39201984'
+        });
+      } catch (err) {
+        console.warn('Provider dispatch error', err);
+      }
 
       setSubmittedClaim({
         reference: generatedRef,

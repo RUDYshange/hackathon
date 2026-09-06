@@ -12,6 +12,11 @@ from crm.views.assistant_views import AssistantVoiceView
 from crm.views.i18n_views import TranslateView
 from crm.views.portal_views import PortalOverviewView
 from crm.views.auth_views import RegisterView, LoginView, MeView, LogoutView
+from crm.views.provider_views import (
+    ProviderSyncClientView,
+    ProviderSubmitClaimView,
+    ProviderIntegrationLogView
+)
 
 urlpatterns = [
     # Authentication
@@ -65,4 +70,13 @@ urlpatterns = [
     path('ui/schemas/client-form/', ClientFormSchemaView.as_view()),
     path('ui/schemas/claim-form', ClaimFormSchemaView.as_view()),
     path('ui/schemas/claim-form/', ClaimFormSchemaView.as_view()),
+
+    # Mock Provider API (Pass-Through Underwriting & Claims Intake)
+    path('providers/sync-client', ProviderSyncClientView.as_view()),
+    path('providers/sync-client/', ProviderSyncClientView.as_view()),
+    path('providers/submit-claim', ProviderSubmitClaimView.as_view()),
+    path('providers/submit-claim/', ProviderSubmitClaimView.as_view()),
+    path('providers/integration-log', ProviderIntegrationLogView.as_view()),
+    path('providers/integration-log/', ProviderIntegrationLogView.as_view()),
 ]
+

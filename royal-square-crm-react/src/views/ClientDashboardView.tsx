@@ -79,6 +79,8 @@ export const ClientDashboardView: React.FC<{
   onReportAccident: () => void;
   onReportLoss?: () => void;
   onSignOut?: () => void;
+  /** Optional cross-navigation supplied by App; not surfaced here (role separation). */
+  onSwitchToAdvisor?: () => void;
 }> = ({ onReportAccident, onReportLoss, onSignOut }) => {
   const [textSize, setTextSize] = useState<TextSize>('base');
   const [highContrast, setHighContrast] = useState(false);

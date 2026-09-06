@@ -25,7 +25,8 @@ import {
   BadgeCheck,
   ChevronDown,
   Settings,
-  LogOut
+  LogOut,
+  ArrowLeft
 } from 'lucide-react';
 
 type ActiveTab =
@@ -46,6 +47,8 @@ interface AdvisorConsoleProps {
   onSignOut?: () => void;
   /** Display name of the signed-in adviser (from the auth session). */
   advisorName?: string;
+  /** Switch to client portal */
+  onSwitchToClient?: () => void;
 }
 
 /**
@@ -53,7 +56,7 @@ interface AdvisorConsoleProps {
  * one of two workspaces reachable from the landing page: businesses/advisers land
  * here, while clients land on the client portal (ClientDashboardView).
  */
-export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName }) => {
+export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advisorName, onSwitchToClient }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
   const [openLogClaimDirectly, setOpenLogClaimDirectly] = useState<boolean>(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -145,6 +148,16 @@ export const AdvisorConsole: React.FC<AdvisorConsoleProps> = ({ onSignOut, advis
           </label>
           <span className="fsp-chip"><BadgeCheck size={13} /> FSP 29370 · FAIS COMPLIANT</span>
           <div className="topbar-spacer" />
+          {onSwitchToClient && (
+            <button
+              className="btn btn-secondary"
+              style={{ borderColor: 'rgba(99, 102, 241, 0.4)', color: '#818cf8' }}
+              onClick={onSwitchToClient}
+              title="Switch to Client-Facing Portal"
+            >
+              <ArrowLeft size={15} /> Client Portal
+            </button>
+          )}
           <button className="btn btn-secondary" onClick={() => handleOpenClaims(true)}><ClipboardPlus size={15} /> Register claim</button>
           <button className="btn btn-primary" onClick={() => go('new-client')}><UserPlus size={15} /> New client</button>
           <div className="adviser-card" style={{ border: 'none', padding: '0 0 0 8px' }}>

@@ -17,7 +17,12 @@ const workspaceFor = (role: AccountRole): View => (role === 'customer' ? 'custom
 export function App() {
   // Front-end session (see auth/session.ts). Restores the last workspace on reload.
   const [session, setSession] = useState(() => loadSession());
-  const [view, setView] = useState<View>(() => (session ? workspaceFor(session.role) : 'landing'));
+  const [view, setView] = useState<View>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'advisor' || window.location.hash === '#advisor') return 'advisor';
+    if (params.get('view') === 'customer' || window.location.hash === '#customer') return 'customer';
+    return session ? workspaceFor(session.role) : 'landing';
+  });
 
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authRole, setAuthRole] = useState<AccountRole | undefined>(undefined);
@@ -67,7 +72,13 @@ export function App() {
   }
 
   if (view === 'advisor') {
-    return <AdvisorConsole onSignOut={handleSignOut} advisorName={session?.name} />;
+    return (
+      <AdvisorConsole
+        onSignOut={handleSignOut}
+        advisorName={session?.name}
+        onSwitchToClient={() => setView('customer')}
+      />
+    );
   }
 
   // Customer workspace — the accessible client portal, with the voice agent on
@@ -87,6 +98,7 @@ export function App() {
           onReportAccident={() => setCustomerPage('report-accident')}
           onReportLoss={() => setCustomerPage('report-loss')}
           onSignOut={handleSignOut}
+          onSwitchToAdvisor={() => setView('advisor')}
         />
       )}
 
