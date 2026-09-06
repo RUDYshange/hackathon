@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Sparkles,
   BadgeCheck,
-  ArrowUpRight
+  ArrowUpRight,
+  ClipboardPlus
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nProvider';
 import type { AccountRole } from './session';
@@ -22,6 +23,8 @@ interface LandingPageProps {
   onSignIn: () => void;
   /** Open the sign-up flow, optionally with a pre-selected account type. */
   onGetStarted: (role?: AccountRole) => void;
+  onOpenCustomerPortal?: () => void;
+  onRegisterClaim?: () => void;
 }
 
 /**
@@ -35,7 +38,12 @@ interface LandingPageProps {
  * - Official FSP 29370 & Astute Exchange compliance indicators
  * - Authentic 4-tile Royal Square brand mark
  */
-export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onGetStarted }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ 
+  onSignIn, 
+  onGetStarted, 
+  onOpenCustomerPortal, 
+  onRegisterClaim 
+}) => {
   const { code, languages, setLanguage } = useI18n();
 
   return (
@@ -94,6 +102,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onGetStarted
                 </select>
               </div>
 
+              {onRegisterClaim && (
+                <button
+                  onClick={onRegisterClaim}
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
+                  title="Register an insurance claim"
+                >
+                  <ClipboardPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Register Claim
+                </button>
+              )}
+
+              {onOpenCustomerPortal && (
+                <button
+                  onClick={onOpenCustomerPortal}
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer"
+                  title="Open Client Portal directly"
+                >
+                  Client Portal
+                </button>
+              )}
+
               <button
                 onClick={onSignIn}
                 className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
@@ -139,6 +168,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onGetStarted
                 >
                   Create your account <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
+                {onRegisterClaim && (
+                  <button
+                    onClick={onRegisterClaim}
+                    className="inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 active:scale-[0.98] cursor-pointer"
+                  >
+                    <ClipboardPlus className="h-4 w-4" aria-hidden="true" />
+                    Register a Claim
+                  </button>
+                )}
                 <button
                   onClick={onSignIn}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"

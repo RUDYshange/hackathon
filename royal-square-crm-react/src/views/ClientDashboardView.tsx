@@ -19,7 +19,8 @@ import {
   Loader2,
   LogOut,
   RefreshCw,
-  History
+  History,
+  ClipboardPlus
 } from 'lucide-react';
 
 import { useI18n } from '../i18n/I18nProvider';
@@ -370,8 +371,9 @@ export const ClientDashboardView: React.FC<{
               aria-label="Register a claim or report motor accident"
               className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition-all text-sm active:scale-[0.98] cursor-pointer min-h-[46px]"
             >
-              <Car className="w-4 h-4" aria-hidden="true" />
-              <span>Register Claim / Motor Accident</span>
+              <ClipboardPlus className="w-4 h-4" aria-hidden="true" />
+              <span>Register Claim</span>
+              <span className="text-[11px] font-normal opacity-85 hidden xl:inline">• Motor &amp; Asset</span>
               <ChevronRight className="w-4 h-4 opacity-70" aria-hidden="true" />
             </button>
             {onReportLoss && (
@@ -506,18 +508,22 @@ export const ClientDashboardView: React.FC<{
                 <span className="text-xs text-slate-400">Tap — we’ll email you within 24h</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                {['Issue Border Letter', 'Request IRP5 Tax Pack', 'Change Details', 'Request Consultation'].map((task) => (
+                {['Register Claim', 'Change Details', 'Issue Border Letter', 'Request IRP5 Tax Pack'].map((task) => (
                   <button 
                     key={task} 
                     onClick={() => {
-                      if (task === 'Change Details') {
+                      if (task === 'Register Claim') {
+                        onReportAccident();
+                      } else if (task === 'Change Details') {
                         setIsChangeDetailsOpen(true);
                       } else {
                         showToast(`${task} — request sent! Check your email.`);
                       }
                     }}
                     className={`p-3.5 text-left border rounded-xl text-xs font-medium transition cursor-pointer min-h-[56px] flex flex-col justify-center gap-1 ${
-                      task === 'Change Details'
+                      task === 'Register Claim'
+                        ? 'border-rose-300 bg-rose-50/80 text-rose-900 hover:bg-rose-100 hover:border-rose-400 font-bold'
+                        : task === 'Change Details'
                         ? 'border-indigo-300 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100 hover:border-indigo-400 font-bold'
                         : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-700'
                     }`}
@@ -525,10 +531,11 @@ export const ClientDashboardView: React.FC<{
                   >
                     <span className="font-semibold leading-tight flex items-center justify-between">
                       {task}
+                      {task === 'Register Claim' && <ClipboardPlus className="w-3 h-3 text-rose-600" />}
                       {task === 'Change Details' && <Sparkles className="w-3 h-3 text-indigo-600" />}
                     </span>
                     <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      {task === 'Change Details' ? 'Upload proof & extract' : 'One tap'} <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                      {task === 'Register Claim' ? 'Voice & Photo Intake' : task === 'Change Details' ? 'Upload proof & extract' : 'One tap'} <ChevronRight className="w-3 h-3" aria-hidden="true" />
                     </span>
                   </button>
                 ))}
@@ -615,15 +622,26 @@ export const ClientDashboardView: React.FC<{
                 Track live status, panel beater authorizations, and docket updates under Policy #ST-39201984.
               </p>
             </div>
-            {onViewClaimsHistory && (
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={onViewClaimsHistory}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition cursor-pointer"
+                onClick={onReportAccident}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer"
+                title="Register a new insurance claim"
               >
-                <span>View Full Claims History &rarr;</span>
+                <ClipboardPlus size={14} />
+                <span>+ Register Claim</span>
               </button>
-            )}
+              {onViewClaimsHistory && (
+                <button
+                  type="button"
+                  onClick={onViewClaimsHistory}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition cursor-pointer"
+                >
+                  <span>View Full Claims History &rarr;</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

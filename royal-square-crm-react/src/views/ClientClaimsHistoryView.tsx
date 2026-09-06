@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Home,
   Watch,
-  Loader2
+  Loader2,
+  ClipboardPlus
 } from 'lucide-react';
 import { secureFetch } from '../services/api';
 import { CURRENT_CLIENT_MOCK } from '../client/mockClientData';
@@ -294,8 +295,8 @@ export const ClientClaimsHistoryView: React.FC<ClientClaimsHistoryViewProps> = (
               onClick={onReportAccident}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer"
             >
-              <Car size={14} />
-              <span>Report Motor Accident</span>
+              <ClipboardPlus size={14} />
+              <span>Register Claim</span>
             </button>
             <button
               type="button"

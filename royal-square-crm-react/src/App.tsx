@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClientDashboardView } from './views/ClientDashboardView';
 import { AccidentReportPageView } from './views/AccidentReportPageView';
 import { ReportLossPageView } from './views/ReportLossPageView';
@@ -21,7 +21,7 @@ export function App() {
   const [view, setView] = useState<View>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('view') === 'advisor' || window.location.hash === '#advisor') return 'advisor';
-    if (params.get('view') === 'customer' || window.location.hash === '#customer') return 'customer';
+    if (params.get('view') === 'customer' || window.location.hash === '#customer' || window.location.hash === '#claim' || window.location.hash === '#register-claim') return 'customer';
     return session ? workspaceFor(session.role) : 'landing';
   });
 
@@ -29,7 +29,31 @@ export function App() {
   const [authRole, setAuthRole] = useState<AccountRole | undefined>(undefined);
 
   // Client-portal sub-navigation (dashboard ⇄ report flows ⇄ claims history).
-  const [customerPage, setCustomerPage] = useState<CustomerPage>('dashboard');
+  const [customerPage, setCustomerPage] = useState<CustomerPage>(() => {
+    if (window.location.hash === '#claim' || window.location.hash === '#register-claim') return 'report-accident';
+    if (window.location.hash === '#claims-history') return 'claims-history';
+    return 'dashboard';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#advisor') {
+        setView('advisor');
+      } else if (hash === '#customer') {
+        setView('customer');
+        setCustomerPage('dashboard');
+      } else if (hash === '#claim' || hash === '#register-claim') {
+        setView('customer');
+        setCustomerPage('report-accident');
+      } else if (hash === '#claims-history') {
+        setView('customer');
+        setCustomerPage('claims-history');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   const goSignIn = () => {
     setAuthMode('signin');
@@ -58,7 +82,20 @@ export function App() {
   };
 
   if (view === 'landing') {
-    return <LandingPage onSignIn={goSignIn} onGetStarted={goSignUp} />;
+    return (
+      <LandingPage
+        onSignIn={goSignIn}
+        onGetStarted={goSignUp}
+        onOpenCustomerPortal={() => {
+          setView('customer');
+          setCustomerPage('dashboard');
+        }}
+        onRegisterClaim={() => {
+          setView('customer');
+          setCustomerPage('report-accident');
+        }}
+      />
+    );
   }
 
   if (view === 'auth') {
