@@ -16,6 +16,7 @@ import {
   Accessibility
 } from 'lucide-react';
 import type { AccountRole } from './session';
+import { DEMO_ACCOUNTS, verifyCredentials, emailExists, registerAccount, findAccount } from './accounts';
 
 type Mode = 'signin' | 'signup';
 
@@ -50,25 +51,53 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
     e.preventDefault();
     setError(null);
 
-    if (isSignup && !name.trim()) {
-      setError(role === 'business' ? 'Please enter your business or adviser name.' : 'Please enter your full name.');
-      return;
-    }
     if (!EMAIL_RE.test(email.trim())) {
       setError('Please enter a valid email address.');
       return;
     }
-    if (password.length < 8) {
-      setError('Your password must be at least 8 characters.');
-      return;
-    }
-    if (isSignup && password !== confirm) {
-      setError('Those passwords don\'t match.');
+
+    if (isSignup) {
+      if (!name.trim()) {
+        setError(role === 'business' ? 'Please enter your business or adviser name.' : 'Please enter your full name.');
+        return;
+      }
+      if (password.length < 8) {
+        setError('Your password must be at least 8 characters.');
+        return;
+      }
+      if (password !== confirm) {
+        setError("Those passwords don't match.");
+        return;
+      }
+      if (emailExists(email)) {
+        setError('An account with that email already exists — try signing in.');
+        return;
+      }
+      const displayName = name.trim();
+      registerAccount({ role, name: displayName, email: email.trim(), password });
+      onAuthenticated(role, displayName, email.trim());
       return;
     }
 
-    const displayName = name.trim() || email.split('@')[0];
-    onAuthenticated(role, displayName, email.trim());
+    // Sign in — verify against demo + locally registered accounts.
+    const acc = verifyCredentials(email, password);
+    if (acc) {
+      onAuthenticated(acc.role, acc.name, acc.email);
+      return;
+    }
+    setError(
+      findAccount(email)
+        ? 'Incorrect password. Please try again.'
+        : 'No account found for that email. Use a demo account below, or sign up.'
+    );
+  };
+
+  const useDemo = (acc: (typeof DEMO_ACCOUNTS)[number]) => {
+    setError(null);
+    setEmail(acc.email);
+    setPassword(acc.password);
+    setRole(acc.role);
+    onAuthenticated(acc.role, acc.name, acc.email);
   };
 
   const switchMode = (next: Mode) => {
@@ -146,28 +175,28 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
           </div>
 
           <form onSubmit={submit} className="mt-6 space-y-5" noValidate>
-            {/* Account type selector */}
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium text-slate-300">
-                {isSignup ? 'Register as' : 'Sign in as'}
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <RoleTile
-                  active={role === 'customer'}
-                  onClick={() => setRole('customer')}
-                  icon={<Users className="h-5 w-5" aria-hidden="true" />}
-                  title="Customer"
-                  subtitle="Client portal"
-                />
-                <RoleTile
-                  active={role === 'business'}
-                  onClick={() => setRole('business')}
-                  icon={<Building2 className="h-5 w-5" aria-hidden="true" />}
-                  title="Business"
-                  subtitle="Advisory console"
-                />
-              </div>
-            </fieldset>
+            {/* Account type selector — the choice is made when registering. */}
+            {isSignup && (
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium text-slate-300">Register as</legend>
+                <div className="grid grid-cols-2 gap-3">
+                  <RoleTile
+                    active={role === 'customer'}
+                    onClick={() => setRole('customer')}
+                    icon={<Users className="h-5 w-5" aria-hidden="true" />}
+                    title="Customer"
+                    subtitle="Client portal"
+                  />
+                  <RoleTile
+                    active={role === 'business'}
+                    onClick={() => setRole('business')}
+                    icon={<Building2 className="h-5 w-5" aria-hidden="true" />}
+                    title="Business"
+                    subtitle="Advisory console"
+                  />
+                </div>
+              </fieldset>
+            )}
 
             {isSignup && (
               <Field
@@ -270,6 +299,37 @@ export const AuthView: React.FC<AuthViewProps> = ({ initialMode, initialRole, on
               </button>
             </p>
           </form>
+
+          {!isSignup && (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Demo logins — tap to enter
+              </p>
+              <div className="space-y-2">
+                {DEMO_ACCOUNTS.map((a) => (
+                  <button
+                    key={a.email}
+                    type="button"
+                    onClick={() => useDemo(a)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${a.role === 'business' ? 'bg-amber-400/15 text-amber-300' : 'bg-indigo-500/15 text-indigo-300'}`}>
+                      {a.role === 'business' ? <Building2 className="h-4 w-4" aria-hidden="true" /> : <Users className="h-4 w-4" aria-hidden="true" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-white">
+                        {a.role === 'business' ? 'Business' : 'Customer'} · {a.name}
+                      </span>
+                      <span className="block truncate text-xs text-slate-400" data-no-translate>
+                        {a.email} · {a.password}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Protected under POPIA &amp; FAIS
