@@ -64,17 +64,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database Configuration
+# Database Configuration — Neon / Supabase PostgreSQL with SQLite fallback.
+# Resolution order:
+#   1. DATABASE_URL          — single connection string (Neon), parsed by dj_database_url.
+#   2. DB_URL/DB_USER/DB_PASSWORD — split credentials (Supabase / JDBC style).
+#   3. SQLite                — local development fallback when nothing else is set.
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
 DB_URL = os.getenv('DB_URL')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_SSLMODE = os.getenv('DB_SSLMODE', 'require')
-DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
 
-if DB_URL and DB_USER and DB_PASSWORD:
+if DATABASE_URL:
+    normalized_database_url = DATABASE_URL.removeprefix('jdbc:')
+    DATABASES = {
+        'default': dj_database_url.parse(
+            normalized_database_url,
+            conn_max_age=int(os.getenv('DB_CONN_MAX_AGE', '600')),
+            conn_health_checks=True,
+            ssl_require=True,
+        )
+    }
+elif DB_URL and DB_USER and DB_PASSWORD:
     normalized_db_url = DB_URL.removeprefix('jdbc:')
     parsed_db_url = urlparse(normalized_db_url)
     db_query = parse_qs(parsed_db_url.query)
+    sslmode = db_query.get('sslmode', [DB_SSLMODE])[0]
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -83,20 +98,12 @@ if DB_URL and DB_USER and DB_PASSWORD:
             'PASSWORD': DB_PASSWORD,
             'HOST': parsed_db_url.hostname,
             'PORT': parsed_db_url.port or 5432,
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+            'CONN_HEALTH_CHECKS': True,
             'OPTIONS': {
-                'sslmode': db_query.get('sslmode', [DB_SSLMODE])[0],
-            }
+                'sslmode': sslmode,
+            },
         }
-    }
-elif DATABASE_URL:
-    normalized_database_url = DATABASE_URL.removeprefix('jdbc:')
-    DATABASES = {
-        'default': dj_database_url.parse(
-            normalized_database_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=True,
-        )
     }
 else:
     DATABASE_NAME = os.getenv('DATABASE_NAME', 'royalsquare.sqlite3')

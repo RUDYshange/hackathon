@@ -5,9 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%230f172a'/><path d='M7 6h7a3 3 0 0 1 0 6H7z' fill='%232563eb'/><path d='M7 12h4l4 6h-4l-4-6z' fill='%23f59e0b'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Royal Square Financial · Wealth Command Centre (FSP 29370)</title>
+    <!-- Tailwind CSS CDN powers the accessible client dashboard (no build step) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter','system-ui','sans-serif'], display: ['Outfit','Inter','sans-serif'] },
+          }
+        }
+      }
+    </script>
+    <!-- Google Fonts: Inter (body), Manrope (CRM display) & Outfit (dashboard display) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>

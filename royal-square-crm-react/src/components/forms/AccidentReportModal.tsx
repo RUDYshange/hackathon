@@ -42,16 +42,16 @@ interface UploadedDocument {
 }
 
 interface AccidentReportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
-  onClaimCreated: () => void;
+  onClaimCreated?: () => void;
   initialClientId?: string;
 }
 
 export const AccidentReportModal: React.FC<AccidentReportModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
-  onClaimCreated,
+  onClaimCreated = () => {},
   initialClientId = ''
 }) => {
   // Steps: 1 = Incident & Voice, 2 = Map Pin Location, 3 = Documents & Evidence, 4 = Calendar Reminder & Review
